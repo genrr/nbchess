@@ -1,19 +1,11 @@
 package main;
 
-import java.util.HashMap;
 import javafx.application.Application;
 import javafx.application.Platform;
-import javafx.beans.InvalidationListener;
-import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.canvas.Canvas;
-import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
@@ -29,14 +21,19 @@ import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 
 public class Engine extends Application {
-	//HashMap<Integer, Character> board = new HashMap<Integer, Character>();
 	private String[][] board = new String[8][8];
-	//private boolean turn = false; 
 	private SimpleBooleanProperty counter  = new SimpleBooleanProperty(true);
+	TextArea console = new TextArea();
+	private static int startX;
+	private static int startY;
+	private static GridPane grid = new GridPane();
+	private static boolean awaitingMove = false;
+	private static StringBuilder sb = new StringBuilder();
+	private static Color selectedColor = new Color(0,0,0,1);
+	private static int colorSwitch = 0;
 	
 	@Override
 	public void start(Stage window) throws Exception {
-		GridPane grid = new GridPane();
 		initBoard(grid);
 		
 		BorderPane bp = new BorderPane();
@@ -50,7 +47,7 @@ public class Engine extends Application {
 		
 		
 		FlowPane sidebar = new FlowPane();
-		Button b1 = new Button("start");
+		Button b1 = new Button("change color scheme");
 		Button b2 = new Button("pause");
 		Button b3 = new Button("end");
 		HBox container1 = new HBox();
@@ -60,7 +57,7 @@ public class Engine extends Application {
 		HBox.setMargin(b3,new Insets(25.0,10.0,50.0,10.0));
 		container1.getChildren().addAll(b1,b2,b3);
 		Pane consolePane = new Pane();
-		TextArea console = new TextArea();
+		
 		consolePane.setPadding(new Insets(30));
 		console.setPrefSize(180, 400);
 		consolePane.getChildren().add(console);
@@ -81,8 +78,8 @@ public class Engine extends Application {
 		container2.getChildren().addAll(setparam1,setparam2);
 		sidebar.setPrefWrapLength(120);
 		sidebar.getChildren().addAll(consolePane,turnLabel,container1,container2);
+		b1.setOnAction(e -> colorChanger(grid));
 		b3.setOnAction(e -> Platform.exit());
-		b1.setOnAction(e -> playTurn(grid));
 		bp.setRight(sidebar);
 
 		
@@ -90,7 +87,13 @@ public class Engine extends Application {
 		
 		
 	}
+	
+	
 
+	//colors
+	//0.28,0.0,0.18,1
+	//
+	
 	private GridPane redraw(GridPane grid) {
 		String indexCorr = "/99991357";
 		
@@ -104,7 +107,7 @@ public class Engine extends Application {
 				
 				if(i%2 == 0) {
 					if(j%2 == 1) {
-						canvas = new Rectangle(100,100,new Color(0.28,0.0,0.18,1));
+						canvas = new Rectangle(100,100,selectedColor);
 					}
 					else if (j%2 == 0) {
 						canvas = new Rectangle(100,100,Color.WHITE);
@@ -113,7 +116,7 @@ public class Engine extends Application {
 				}
 				else {
 					if(j%2 == 0) {
-						canvas = new Rectangle(100,100,new Color(0.28,0.0,0.18,1));
+						canvas = new Rectangle(100,100,selectedColor);
 					}
 					else if (j%2 == 1) {
 						canvas = new Rectangle(100,100,Color.WHITE);
@@ -127,11 +130,9 @@ public class Engine extends Application {
 				square.setId(temp+""+temp2);
 				square.getChildren().add(canvas);
 				square.getChildren().add(piece);
+				square.setOnMousePressed(e -> gridFn(square,temp,temp2));
+				square.setOnMouseReleased(e -> gridFn2(square));
 
-				square.setOnMousePressed(e -> gridFn(temp,temp2));
-				square.setOnMouseReleased(e -> gridFn2(square,temp,temp2));
-				
-				
 				//Canvas canvas = new Canvas(300, 250);
 		        //GraphicsContext gc = canvas.getGraphicsContext2D();
 		        //gc.setFill(Color.BLACK);
@@ -140,7 +141,7 @@ public class Engine extends Application {
 				GridPane.setConstraints(square,i,j);
 				grid.getChildren().add(square);
 				
-				
+				//System.out.println("temp: "+temp+"temp2: "+temp2);
 				if(gridState(temp,temp2) != null) {
 					piece.setImage(new Image(getClass().getClassLoader().getResource("resources/"+gridState(temp,temp2)+".png").toExternalForm(),100,100,true,true));
 				}
@@ -150,8 +151,8 @@ public class Engine extends Application {
 		}
 		return grid;
 	}
-	/*
-	private void initBoard() {
+	
+	private void fillBoard() {
 		for (int i = 0; i < 8; i++) {
 			for(int j = 0; j < 8; j++) {
 				board[i][j] = " ";
@@ -159,30 +160,43 @@ public class Engine extends Application {
 		}
 		
 
-	}*/
-	
-	private void playTurn(GridPane g) {
-		setTurn();
-		redraw(g);
 	}
-	
+
 	private void setTurn() {
 		counter.setValue(!counter.getValue());
-		//turn = white;
 	}
 	
-	private void gridFn(int x, int y) {
-		System.out.println("grid selected at position:"+x+", "+y);
+	private void gridFn(Pane p, int x, int y) {
+		if(awaitingMove) {
+			gridFn3(p,startX,startY);
+			awaitingMove = false;
+		}
+		else {
+			startX = x;
+			startY = y;
+			awaitingMove = true;
+		}
 	}
 	
-	private void gridFn2(Pane p,int startX, int startY) {
+	private void gridFn2(Pane p) {
 		p.setOnMouseEntered(e -> gridFn3(p,startX,startY));
-		System.out.println("mouse released at position:"+p.getId()+", ");
 	}
 	
 	private void gridFn3(Pane p,int a, int b) {
-		System.out.println("mouse entered position:"+p.getId()+", ");
-		RuleSet.validate(board, a, b, Integer.parseInt(""+p.getId().charAt(0)), Integer.parseInt(""+p.getId().charAt(1)));
+		System.out.println("mouse released at position:"+p.getId()+", ");
+		try {
+			int targetX = Integer.parseInt(""+p.getId().charAt(0))-1;
+			int targetY = Integer.parseInt(""+p.getId().charAt(1))-1;
+			board = RuleSet.validate(board, a-1, b-1, targetX, targetY);
+			sb.append(board[targetX][targetY].substring(0,board[targetX][targetY].lastIndexOf('_'))+" moved to square "+Integer.parseInt(""+p.getId().charAt(0))+","+Integer.parseInt(""+p.getId().charAt(1))).append('\n');
+			redraw(grid);
+			setTurn();
+		}
+		catch(NullPointerException e) {
+			sb.append("illegal move").append('\n');
+		}
+		console.setText(sb.toString());
+		
 	}
 	
 	
@@ -199,6 +213,7 @@ public class Engine extends Application {
 	
 	
 	private void initBoard(GridPane grid) {
+		fillBoard();
 		board[0][7] = "rook_b";
 		board[1][7] = "knight_b";
 		board[2][7] = "bishop_b";
@@ -223,10 +238,21 @@ public class Engine extends Application {
 		}
 		
 		redraw(grid);
-		setTurn();
-		
-		
-		
+
+	}
+	
+	private void colorChanger(GridPane grid) {
+		colorSwitch = (colorSwitch + 1) % 3; 
+		if(colorSwitch == 0) {
+			selectedColor = new Color(0,0,0,1);
+		}
+		else if(colorSwitch == 1) {
+			selectedColor = new Color(0.28,0.0,0.18,1.0);
+		}
+		else {
+			selectedColor = new Color(0.57,0.12,0.27,0.45);
+		}
+		redraw(grid);
 	}
 	
 	public static void main(String[] args) {
