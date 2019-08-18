@@ -3,6 +3,7 @@ package main;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -22,7 +23,12 @@ import javafx.stage.Stage;
 
 public class Engine extends Application {
 	private String[][] board = new String[8][8];
+	public int moveCounter = 0;
+	private int turnCounter = 0;
+
 	private SimpleBooleanProperty counter  = new SimpleBooleanProperty(true);
+	private SimpleStringProperty bUnitsLost = new SimpleStringProperty();
+	private SimpleStringProperty wUnitsLost = new SimpleStringProperty();
 	TextArea console = new TextArea();
 	private static int startX;
 	private static int startY;
@@ -47,6 +53,8 @@ public class Engine extends Application {
 		
 		
 		FlowPane sidebar = new FlowPane();
+		Label wgameInfo = new Label("White");
+		Label bgameInfo = new Label("Black");
 		Button b1 = new Button("change color scheme");
 		Button b2 = new Button("pause");
 		Button b3 = new Button("end");
@@ -64,27 +72,38 @@ public class Engine extends Application {
 		Label turnLabel = new Label("awaiting game..");
 		turnLabel.setPrefSize(250,50);
 		turnLabel.setAlignment(Pos.CENTER);
+
 		counter.addListener((observableValue,oldValue,newValue) -> {
 			if(newValue) {
-				turnLabel.setText("white");
+				turnLabel.setText("White");
 			}
 			else {
-				turnLabel.setText("black");
+				turnLabel.setText("Black");
 			}
 		});
 		
+		bUnitsLost.addListener((observableValue,oldValue,newValue) -> {
+			wgameInfo.setText(newValue);
+		});
+		
+		
+		wUnitsLost.addListener((observableValue,oldValue,newValue) -> {
+			bgameInfo.setText(newValue);
+		});
+		
+		
+		//add. controls for the algorithm
 		Button setparam1 = new Button("shape");
 		Button setparam2 = new Button("f(x)");
 		container2.getChildren().addAll(setparam1,setparam2);
 		sidebar.setPrefWrapLength(120);
-		sidebar.getChildren().addAll(consolePane,turnLabel,container1,container2);
+		sidebar.getChildren().addAll(consolePane,turnLabel,wgameInfo,bgameInfo,container1,container2);
 		b1.setOnAction(e -> colorChanger(grid));
 		b3.setOnAction(e -> Platform.exit());
 		bp.setRight(sidebar);
-
-		
 		bp.setLeft(redraw(grid));
 		
+		counter.setValue(true); //start the game already
 		
 	}
 	
@@ -131,7 +150,9 @@ public class Engine extends Application {
 				square.getChildren().add(canvas);
 				square.getChildren().add(piece);
 				square.setOnMousePressed(e -> gridFn(square,temp,temp2));
-				square.setOnMouseReleased(e -> gridFn2(square));
+				System.out.println(awaitingMove);
+				
+				//square.setOnMouseReleased(e -> gridFn2(square));
 
 				//Canvas canvas = new Canvas(300, 250);
 		        //GraphicsContext gc = canvas.getGraphicsContext2D();
@@ -162,43 +183,137 @@ public class Engine extends Application {
 
 	}
 
-	private void setTurn() {
+	private void setTurn(String piece, int x, int tx, int ty) {
+		moveCounter++;
+		
+		if(moveCounter % 2 == 1) {
+			turnCounter++;
+			sb.append(turnCounter+". ");
+		}
+		else {
+			sb.append("\n");
+		}
+		
+		sb.append(pieceSymbol(piece,x,tx,ty)+" ");
+		
 		counter.setValue(!counter.getValue());
 	}
 	
 	private void gridFn(Pane p, int x, int y) {
 		if(awaitingMove) {
-			gridFn3(p,startX,startY);
+			gridFn2(p,startX,startY,x,y);
 			awaitingMove = false;
 		}
 		else {
-			startX = x;
+			System.out.println(awaitingMove);
+			startX = x; 
 			startY = y;
 			awaitingMove = true;
 		}
 	}
 	
-	private void gridFn2(Pane p) {
-		p.setOnMouseEntered(e -> gridFn3(p,startX,startY));
-	}
 	
-	private void gridFn3(Pane p,int a, int b) {
-		System.out.println("mouse released at position:"+p.getId()+", ");
-		try {
-			int targetX = Integer.parseInt(""+p.getId().charAt(0))-1;
-			int targetY = Integer.parseInt(""+p.getId().charAt(1))-1;
-			board = RuleSet.validate(board, a-1, b-1, targetX, targetY);
-			sb.append(board[targetX][targetY].substring(0,board[targetX][targetY].lastIndexOf('_'))+" moved to square "+Integer.parseInt(""+p.getId().charAt(0))+","+Integer.parseInt(""+p.getId().charAt(1))).append('\n');
-			redraw(grid);
-			setTurn();
-		}
-		catch(NullPointerException e) {
-			sb.append("illegal move").append('\n');
-		}
-		console.setText(sb.toString());
+	private void gridFn2(Pane p,int sx, int sy, int tx, int ty) {
+		System.out.println(sx+""+sy);
+		System.out.println(tx+""+ty);
+		System.out.println(board[sx-1][sy-1]);
+
+		//int targetX = Integer.parseInt(""+p.getId().charAt(0))-1;
+		//int targetY = Integer.parseInt(""+p.getId().charAt(1))-1;
 		
+		int result = RuleSet.validate(board, counter.getValue(), sx-1, sy-1, tx-1, ty-1);
+		
+		if(result == 0) {
+			makeMove(board[sx-1][sy-1],sx,sy,tx,ty);
+			//sb.append(board[targetX][targetY].substring(0,board[targetX][targetY].lastIndexOf('_'))+" moved to square "+Integer.parseInt(""+p.getId().charAt(0))+","+Integer.parseInt(""+p.getId().charAt(1))).append('\n');
+			redraw(grid);
+			setTurn(board[tx-1][ty-1], sx-1, tx-1, ty);
+		}
+		else if(result == 2){
+			sb.append("king in check!");
+		}
+		else if(result == 3) {
+			sb.append("WHITE WINS!\n");
+		}
+		else if(result == 4) {
+			sb.append("BLACK WINS!\n");
+		}
+		else {
+			sb.append("Illegal move").append('\n');
+		}
+		
+		console.setText(sb.toString());
+
+	}
+
+	private void makeMove(String piece, int x, int y, int tX, int tY){
+		if(board[tX-1][tY-1] != " "){
+			scoreboard(board[tX-1][tY-1]);
+		}
+		board[tX-1][tY-1] = piece;
+		board[x-1][y-1] = " ";
 	}
 	
+	private String pieceSymbol(String piece, int startingX, int targetX, int targetY) {
+		String symbol = "";
+		
+		if(piece.contains("knight")) {
+			symbol = "N";
+		}
+		else if(piece.contains("bishop")) {
+			symbol = "B";
+		}
+		else if(piece.contains("queen")) {
+			symbol = "Q";
+		}
+		else if(piece.contains("rook")) {
+			symbol = "R";
+		}
+		else if(piece.contains("king")) {
+			symbol = "K";
+		}
+
+		
+		symbol += xConv(targetX)+targetY;
+		
+		
+		
+		return symbol;
+	}
+
+	
+	private String xConv(int a) {
+		String symbol = "";
+		
+		switch(a) {
+		case 0:
+			symbol += "a";
+			break;
+		case 1:
+			symbol += "b";
+			break;
+		case 2:
+			symbol += "c";
+			break;
+		case 3:
+			symbol += "d";
+			break;
+		case 4:
+			symbol += "e";
+			break;
+		case 5:
+			symbol += "f";
+			break;
+		case 6:
+			symbol += "g";
+			break;
+		case 7: 
+			symbol += "h";
+			break;
+		}
+		
+		return symbol;
+	}
 	
 	private String gridState(int x, int y) {
 		String element = board[x-1][y-1];
@@ -210,6 +325,19 @@ public class Engine extends Application {
 		return element;
 
 	}
+	
+	
+	private void scoreboard(String piece) {
+		if(counter.get()) {
+			wUnitsLost.concat(piece+"["+MGameStuff.unitValue(piece)+"]\n");
+		}
+		else {
+			bUnitsLost.concat(piece+"["+MGameStuff.unitValue(piece)+"]\n");
+		}
+		
+	}
+	
+	
 	
 	
 	private void initBoard(GridPane grid) {
