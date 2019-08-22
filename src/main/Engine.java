@@ -22,26 +22,41 @@ import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 
 public class Engine extends Application {
-	private String[][] board = new String[8][8];
+	private static Piece[][] board = new Piece[8][8];
+	public Piece[] pieces = new Piece[32];
 	public int moveCounter = 0;
 	private int turnCounter = 0;
 
-	private SimpleBooleanProperty counter  = new SimpleBooleanProperty(true);
-	private SimpleStringProperty bUnitsLost = new SimpleStringProperty();
-	private SimpleStringProperty wUnitsLost = new SimpleStringProperty();
+	private static SimpleBooleanProperty counter  = new SimpleBooleanProperty(true);
+	private static SimpleStringProperty bUnitsLost = new SimpleStringProperty();
+	private static SimpleStringProperty wUnitsLost = new SimpleStringProperty();
 	TextArea console = new TextArea();
 	private static int startX;
 	private static int startY;
 	private static GridPane grid = new GridPane();
 	private static boolean awaitingMove = false;
 	private static StringBuilder sb = new StringBuilder();
-	private static Color selectedColor = new Color(0,0,0,1);
-	private static int colorSwitch = 0;
+	private static Color gridColor1;
+	private static Color gridColor2;
+	private static int colorSwitch = -1;
 	
 	@Override
 	public void start(Stage window) throws Exception {
-		initBoard(grid);
 		
+		int[][] mm =   {{0,0,0,0,0,0,0},
+				  		{0,0,0,770,0,0,0},
+				  		{0,0,1,1,1,0,0},
+				  		{0,2,2,2,2,2,0},
+				  		{3,3,3,3,3,3,3},
+				  		{4,4,4,4,4,4,4}};
+			
+		
+		System.out.println(mm[1][3]);
+		
+		
+		
+		initBoard(grid);
+		colorChanger(grid);
 		BorderPane bp = new BorderPane();
 		Scene scene = new Scene(bp,1080,920);
 		window.setScene(scene);
@@ -126,19 +141,19 @@ public class Engine extends Application {
 				
 				if(i%2 == 0) {
 					if(j%2 == 1) {
-						canvas = new Rectangle(100,100,selectedColor);
+						canvas = new Rectangle(100,100,gridColor1);
 					}
 					else if (j%2 == 0) {
-						canvas = new Rectangle(100,100,Color.WHITE);
+						canvas = new Rectangle(100,100,gridColor2);
 						
 					}
 				}
 				else {
 					if(j%2 == 0) {
-						canvas = new Rectangle(100,100,selectedColor);
+						canvas = new Rectangle(100,100,gridColor1);
 					}
 					else if (j%2 == 1) {
-						canvas = new Rectangle(100,100,Color.WHITE);
+						canvas = new Rectangle(100,100,gridColor2);
 					}
 				}
 
@@ -150,7 +165,7 @@ public class Engine extends Application {
 				square.getChildren().add(canvas);
 				square.getChildren().add(piece);
 				square.setOnMousePressed(e -> gridFn(square,temp,temp2));
-				System.out.println(awaitingMove);
+				//System.out.println(awaitingMove);
 				
 				//square.setOnMouseReleased(e -> gridFn2(square));
 
@@ -176,7 +191,7 @@ public class Engine extends Application {
 	private void fillBoard() {
 		for (int i = 0; i < 8; i++) {
 			for(int j = 0; j < 8; j++) {
-				board[i][j] = " ";
+				board[i][j] = new Piece(" ");
 			}
 		}
 		
@@ -218,16 +233,12 @@ public class Engine extends Application {
 		System.out.println(tx+""+ty);
 		System.out.println(board[sx-1][sy-1]);
 
-		//int targetX = Integer.parseInt(""+p.getId().charAt(0))-1;
-		//int targetY = Integer.parseInt(""+p.getId().charAt(1))-1;
-		
 		int result = RuleSet.validate(board, counter.getValue(), sx-1, sy-1, tx-1, ty-1);
 		
 		if(result == 0) {
 			makeMove(board[sx-1][sy-1],sx,sy,tx,ty);
-			//sb.append(board[targetX][targetY].substring(0,board[targetX][targetY].lastIndexOf('_'))+" moved to square "+Integer.parseInt(""+p.getId().charAt(0))+","+Integer.parseInt(""+p.getId().charAt(1))).append('\n');
 			redraw(grid);
-			setTurn(board[tx-1][ty-1], sx-1, tx-1, ty);
+			setTurn(board[tx-1][ty-1].getName(), sx-1, tx-1, ty);
 		}
 		else if(result == 2){
 			sb.append("king in check!");
@@ -246,15 +257,19 @@ public class Engine extends Application {
 
 	}
 
-	private void makeMove(String piece, int x, int y, int tX, int tY){
-		if(board[tX-1][tY-1] != " "){
-			scoreboard(board[tX-1][tY-1]);
+	public static void makeMove(Piece piece, int x, int y, int tX, int tY){
+		if(board[tX-1][tY-1] != null){
+			scoreboard(board[tX-1][tY-1].getName());
 		}
+		
+		board[x-1][y-1] = null;
 		board[tX-1][tY-1] = piece;
-		board[x-1][y-1] = " ";
+		
+		
+		
 	}
 	
-	private String pieceSymbol(String piece, int startingX, int targetX, int targetY) {
+	private  String pieceSymbol(String piece, int startingX, int targetX, int targetY) {
 		String symbol = "";
 		
 		if(piece.contains("knight")) {
@@ -315,19 +330,20 @@ public class Engine extends Application {
 		return symbol;
 	}
 	
+	
 	private String gridState(int x, int y) {
-		String element = board[x-1][y-1];
+		Piece element = board[x-1][y-1];
 		
-		if(element == " ") {
+		if(element == null) {
 			return null;
 		}
 		
-		return element;
+		return element.getName();
 
 	}
 	
 	
-	private void scoreboard(String piece) {
+	private static void scoreboard(String piece) {
 		if(counter.get()) {
 			wUnitsLost.concat(piece+"["+MGameStuff.unitValue(piece)+"]\n");
 		}
@@ -341,28 +357,28 @@ public class Engine extends Application {
 	
 	
 	private void initBoard(GridPane grid) {
-		fillBoard();
-		board[0][7] = "rook_b";
-		board[1][7] = "knight_b";
-		board[2][7] = "bishop_b";
-		board[3][7] = "queen_b";
-		board[4][7] = "king_b";
-		board[5][7] = "bishop_b";
-		board[6][7] = "knight_b";
-		board[7][7] = "rook_b";
+		//fillBoard();
+		board[0][7] = new Piece(0,7,"rook_b",0,false);
+		board[1][7] = new Piece(1,7,"knight_b",1,false);
+		board[2][7] = new Piece(2,7,"bishop_b",2,false);
+		board[3][7] = new Piece(3,7,"queen_b",3,false);
+		board[4][7] = new Piece(4,7,"king_b",4,false);
+		board[5][7] = new Piece(5,7,"bishop_b",5,false);
+		board[6][7] = new Piece(6,7,"knight_b",6,false);
+		board[7][7] = new Piece(7,7,"rook_b",7,false);
 		
-		board[0][0] = "rook_w";
-		board[1][0] = "knight_w";
-		board[2][0] = "bishop_w";
-		board[3][0] = "queen_w";
-		board[4][0] = "king_w";
-		board[5][0] = "bishop_w";
-		board[6][0] = "knight_w";
-		board[7][0] = "rook_w";
+		board[0][0]  = new Piece(0,0,"rook_w",8,true);
+		board[1][0]  = new Piece(1,0,"knight_w",9,true);
+		board[2][0]  = new Piece(2,0,"bishop_w",10,true);
+		board[3][0]  = new Piece(3,0,"queen_w",11,true);
+		board[4][0]  = new Piece(4,0,"king_w",12,true);
+		board[5][0] = new Piece(5,0,"bishop_w",13,true);
+		board[6][0]  = new Piece(6,0,"knight_w",14,true);
+		board[7][0]  = new Piece(7,0,"rook_w",15,true);
 		
 		for (int i = 0; i < 8; i++) {
-			board[i][6] = "pawn_b";
-			board[i][1] = "pawn_w";
+			board[i][6] = new Piece(16+i,6,"pawn_b",16+i,false);
+			board[i][1] = new Piece(24+i,1,"pawn_w",24+i,true);
 		}
 		
 		redraw(grid);
@@ -370,15 +386,18 @@ public class Engine extends Application {
 	}
 	
 	private void colorChanger(GridPane grid) {
-		colorSwitch = (colorSwitch + 1) % 3; 
+		colorSwitch = (colorSwitch+1) % 3; 
 		if(colorSwitch == 0) {
-			selectedColor = new Color(0,0,0,1);
+			gridColor1 = new Color(0.84,0.67,0.47,1.0);
+			gridColor2 = new Color(0.98,0.88,0.71,1.0);
 		}
 		else if(colorSwitch == 1) {
-			selectedColor = new Color(0.28,0.0,0.18,1.0);
+			gridColor1 = new Color(0.28,0.0,0.18,1.0);
+			gridColor2 = new Color(0.98,0.78,0.51,1.0);
 		}
-		else {
-			selectedColor = new Color(0.57,0.12,0.27,0.45);
+		else if(colorSwitch == 2){
+			gridColor1 = new Color(0.57,0.12,0.27,1.0);
+			gridColor2 = new Color(0.7,0.7,0.7,1.0);
 		}
 		redraw(grid);
 	}
@@ -386,5 +405,40 @@ public class Engine extends Application {
 	public static void main(String[] args) {
 		launch(args);
 	}
+	
+}
+
+class Piece{
+	
+	private String name;
+	private int id;
+	private boolean color;
+
+	
+	public Piece(int a, int b,String name, int id, boolean color) {
+		this.name = name;
+		this.id = id;
+		this.color = color;
+	}
+	
+	
+	
+	public Piece(String name) {
+		this.name = name;
+	}
+	
+	
+	public boolean getColor() {
+		return color;
+	}
+	
+	public int getId() {
+		return id;
+	}
+	
+	public String getName() {
+		return name;
+	}
+
 	
 }

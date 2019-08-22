@@ -2,13 +2,10 @@ package main;
 
 public class RuleSet {
 	private static int limit = 0;
-	static String[][] grid = null;
+	private static Piece[][] grid = null;
+	private static Piece[][] tempGrid = null;
 	private static int[] pattern;
-	private static int wkingX = 4;
-	private static int wkingY = 0;
-	private static int bkingX = 4;
-	private static int bkingY = 7;
-	
+
 	/**
 	 * 
 	 * @param rgrid
@@ -27,7 +24,7 @@ public class RuleSet {
 	 * 
 	 */
 	
-	public static int validate(String[][] rgrid, boolean white, int startX, int startY, int endX, int endY) {
+	public static int validate(Piece[][] rgrid, boolean white, int startX, int startY, int endX, int endY) {
 		grid = rgrid;
 		
 		/*
@@ -41,11 +38,13 @@ public class RuleSet {
 		
 		//trying to move other players piece
 		
-		if((white && (grid[startX][startY].charAt(grid[startX][startY].length()-1) != 'w')) || (!white && grid[startX][startY].charAt(grid[startX][startY].length()-1) != 'b')) {
+		System.out.println(grid[startX][startY] != null);
+		
+		if(grid[startX][startY] != null && ((white && !grid[startX][startY].getColor()) || (!white && grid[startX][startY].getColor()))) {
 			return 1;
 		}
 		
-		if(grid[startX][startY] != " " && !(parsePattern(grid[startX][startY],startX,startY,endX,endY).equals("error")) && 
+		if(grid[startX][startY] != null && !(parsePattern(grid[startX][startY],startX,startY,endX,endY).equals("error")) && 
 				!blocking(grid[startX][startY],startX,startY,endX,endY))
 		{
 			if(check_mate() == 1) {
@@ -55,24 +54,16 @@ public class RuleSet {
 				return 4;
 			}
 			
-			if(king_in_check(white)) {
+			if(king_in_check(white,grid[startX][startY],startX,startY,endX,endY)) {
 				return 2;
 			}
 			
-			if(grid[startX][startY].contains("king_w")) {
-				wkingX = endX;
-				wkingY = endY;
-			}
-			else if(grid[startX][startY].contains("king_b")) {
-				bkingX = endX;
-				bkingY = endY;
-			}
 			return 0;
 		}
 		return 1;
 	}
 	
-	private static String parsePattern(String p,int x, int y,int tX, int tY){
+	private static String parsePattern(Piece p,int x, int y,int tX, int tY){
 		System.out.println("tY: "+tY+"y: "+y);
 		
 		
@@ -80,8 +71,8 @@ public class RuleSet {
 		
 		while(limit < 8){
 			//rotate(p);
-			if(verifyPattern(p,pattern,y,grid[tX][tY])){
-				return p;
+			if(verifyPattern(p.getName(),pattern,y,grid[tX][tY])){
+				return p.getName();
 			}
 
 		limit++;
@@ -90,43 +81,43 @@ public class RuleSet {
 		return "error";
 	}
 
-	static boolean verifyPattern(String piece, int[] pattern, int y, String targetSquareContent){
+	static boolean verifyPattern(String name, int[] pattern, int y, Piece targetSquareContent){
 		boolean result = false;
 		System.out.println(pattern[0]+" "+pattern[1]);
 		
-		if (piece.equals("pawn_w")){
+		if (name.equals("pawn_w")){
 			System.out.println(pattern[0]+" "+pattern[1]);
 				//white pawn capture OR white pawn moves one square up OR pawn is situated at (x,1) and can move two squares up
-				if((targetSquareContent.charAt(targetSquareContent.length()-1) == 'b' && (Math.abs(pattern[0]) == 1 && pattern[1] == 1)) || 
+				if((targetSquareContent != null && !targetSquareContent.getColor() && (Math.abs(pattern[0]) == 1 && pattern[1] == 1)) || 
 						(pattern[0] == 0 && pattern[1] == 1) || 
 						(y == 1 && pattern[0] == 0 && pattern[1] == 2)){
 					result = true;
 				}
 			
 		}
-		else if (piece.equals("pawn_b")){
+		else if (name.equals("pawn_b")){
 			System.out.println(y);
 			System.out.println(pattern[0]+" "+pattern[1]);
 			//black pawn capture OR white pawn moves one square down OR pawn is situated at (x,6) and can move two squares down
-			if((targetSquareContent.charAt(targetSquareContent.length()-1) == 'w' && (Math.abs(pattern[0]) == 1 && pattern[1] == -1)) || (pattern[0] == 0 && pattern[1] == -1) || 
+			if((targetSquareContent != null && targetSquareContent.getColor() && (Math.abs(pattern[0]) == 1 && pattern[1] == -1)) || (pattern[0] == 0 && pattern[1] == -1) || 
 					(y == 6 && pattern[0] == 0 && pattern[1] == -2)){
 				result = true;
 			}
 			
 		}
-		else if (piece.substring(0,6).equals("knight") && (Math.abs(pattern[0]) == 1 && Math.abs(pattern[1]) == 2) || (Math.abs(pattern[0]) == 2 && Math.abs(pattern[1]) == 1)){
+		else if (name.substring(0,6).equals("knight") && (Math.abs(pattern[0]) == 1 && Math.abs(pattern[1]) == 2) || (Math.abs(pattern[0]) == 2 && Math.abs(pattern[1]) == 1)){
 			result = true;
 		}
-		else if (piece.substring(0,6).equals("bishop") && Math.abs(pattern[0]) == Math.abs(pattern[1])){
+		else if (name.substring(0,6).equals("bishop") && Math.abs(pattern[0]) == Math.abs(pattern[1])){
 			result = true;
 		}
-		else if (piece.substring(0,4).equals("rook") && (pattern[0] == 0 || pattern[1] == 0)) {
+		else if (name.substring(0,4).equals("rook") && (pattern[0] == 0 || pattern[1] == 0)) {
 			result = true;
 		}
-		else if (piece.substring(0,5).equals("queen") && ((pattern[0] == 0 || pattern[1] == 0) || (Math.abs(pattern[0]) == Math.abs(pattern[1])))){
+		else if (name.substring(0,5).equals("queen") && ((pattern[0] == 0 || pattern[1] == 0) || (Math.abs(pattern[0]) == Math.abs(pattern[1])))){
 			result = true;
 		}
-		else if (piece.substring(0,4).equals("king") && ((pattern[0] == 0 && Math.abs(pattern[1]) == 1 || (pattern[1] == 0 && Math.abs(pattern[0]) == 1)) || (Math.abs(pattern[0]) == 1 && Math.abs(pattern[1]) == 1))){
+		else if (name.substring(0,4).equals("king") && ((pattern[0] == 0 && Math.abs(pattern[1]) == 1 || (pattern[1] == 0 && Math.abs(pattern[0]) == 1)) || (Math.abs(pattern[0]) == 1 && Math.abs(pattern[1]) == 1))){
 			result = true;
 		}
 		else{
@@ -140,7 +131,7 @@ public class RuleSet {
 		int temp1 = 0;
 		int temp2 = 0;
 	
-		if(piece.equals("pawn_w") || piece.equals("pawn_b")) {
+		if(piece.contains("pawn")) {
 			return;
 		}
 		
@@ -161,18 +152,18 @@ public class RuleSet {
 
 
 
-	static boolean blocking(String piece,int x,int y,int tX, int tY){
+	static boolean blocking(Piece piece,int x,int y,int tX, int tY){
 		//theres something in the way between (exclusive)(x,y) and (tX,tY)(inclusive) while piece is not a knight
 		int tempX = 0;
 		int tempY = 0;
 		int start;
 		int end;
 		
-		if((piece.charAt(piece.length()-1) == grid[tX][tY].charAt(grid[tX][tY].length()-1))) {
+		if(grid[tX][tY] != null && (piece.getColor() == grid[tX][tY].getColor())) {
 			return true;	
 		}
 		
-		if(piece.substring(0,6).equals("knight")) {
+		if(piece.getName().substring(0,6).equals("knight")) {
 			return false;
 		}
 		
@@ -195,7 +186,8 @@ public class RuleSet {
 			
 			System.out.println("start "+start+" end "+end);
 			
-			for(int i = start; i < end-1; i++) {
+			for(int i = 1; i < end-start; i++) {
+				
 				
 				if(tY < y) {
 					tempY = y-i;
@@ -221,7 +213,7 @@ public class RuleSet {
 				System.out.println(tempX+", "+tempY);
 
 				
-				if(!grid[tempX][tempY].equals(" ")) {
+				if(grid[tempX][tempY] != null) {
 					return true;
 				}
 			}
@@ -231,16 +223,72 @@ public class RuleSet {
 		return false;
 	}
 
-	static boolean king_in_check(boolean whitesTurn){
+	static boolean king_in_check(boolean whitesTurn, Piece piece, int sx, int sy, int tx, int ty){
 		//exists different-colored piece with legal next move, with targetX,targetY = kings (x,y)
 		
-		String tempPiece = "";
+
+		int kingX = 0;
+		int kingY = 0;
+		
+		//copy state so we can test for checks
+		
+		tempGrid = grid;		
+		
+		Engine.makeMove(piece, sx+1,sy+1,tx+1,ty+1);
 		
 		if(whitesTurn) {
-			tempPiece = "knight";
-
-			return true;
+			for(int i = 0; i < 8; i++) {
+				for(int j = 0; j < 8; j++) {
+					
+					if(grid[i][j] != null && grid[i][j].getName().equals("king_w")) {
+						kingY = 7-(7-i);
+						kingX = 7-j;
+						
+					}			
+				}
+			}			
+						
+				
+			for(int i = 0; i < 8; i++) {
+				for(int j = 0; j < 8; j++) {
+					System.out.println("white king at: "+kingX+","+kingY);
+					if(grid[i][j] != null && !grid[i][j].getColor() && MGameStuff.distance(grid[i][j],7-j,7-(7-i),kingX-(7-j),kingY-(7-(7-i))) == 1) {
+						//restore original state
+						grid = tempGrid;
+						//return true;
+					}
+					MGameStuff.resetDistance();
+				}
+			}			
+			
 		}
+		else {
+			for(int i = 0; i < 8; i++) {
+				for(int j = 0; j < 8; j++) {
+					
+					if(grid[i][j] != null && grid[i][j].getName().equals("king_b")) {
+						kingY = 7-(7-i);
+						kingX = 7-j;
+						
+					}
+				}
+			}			
+						
+				
+			for(int i = 0; i < 8; i++) {
+				for(int j = 0; j < 8; j++) {
+					if(grid[i][j] != null && grid[i][j].getColor() && MGameStuff.distance(grid[i][j],7-j,7-(7-i),kingX-(7-j),kingY-(7-(7-i))) == 1) {
+						//restore original state
+						grid = tempGrid;
+						//return true;
+					}
+					MGameStuff.resetDistance();
+				}
+			}			
+			
+		}
+		//restore original state
+		grid = tempGrid;
 		
 		return false;
 	}
