@@ -129,10 +129,9 @@ public class Engine extends Application {
 	//
 	
 	private GridPane redraw(GridPane grid) {
-		String indexCorr = "/99991357";
 		
-		for(int i = 1; i<9; i++) {
-			for(int j = 8; j>0; j--) {
+		for(int i = 0; i < 8; i++) {
+			for(int j = 0; j < 8; j++) {
 				
 				Pane square = new Pane();
 				Rectangle canvas = null;
@@ -157,23 +156,13 @@ public class Engine extends Application {
 					}
 				}
 
-				int temp = i;
-				
-				int temp2 = Math.abs(j - Integer.parseInt(""+indexCorr.charAt(j)));
+				int temp = j;
+				int temp2 = i;
 				
 				square.setId(temp+""+temp2);
 				square.getChildren().add(canvas);
 				square.getChildren().add(piece);
 				square.setOnMousePressed(e -> gridFn(square,temp,temp2));
-				//System.out.println(awaitingMove);
-				
-				//square.setOnMouseReleased(e -> gridFn2(square));
-
-				//Canvas canvas = new Canvas(300, 250);
-		        //GraphicsContext gc = canvas.getGraphicsContext2D();
-		        //gc.setFill(Color.BLACK);
-				//Pane canvas = new Pane();
-				//canvas.setStyle("-fx-background-color: red;");
 				GridPane.setConstraints(square,i,j);
 				grid.getChildren().add(square);
 				
@@ -188,15 +177,6 @@ public class Engine extends Application {
 		return grid;
 	}
 	
-	private void fillBoard() {
-		for (int i = 0; i < 8; i++) {
-			for(int j = 0; j < 8; j++) {
-				board[i][j] = new Piece(" ");
-			}
-		}
-		
-
-	}
 
 	private void setTurn(String piece, int x, int tx, int ty) {
 		moveCounter++;
@@ -220,7 +200,6 @@ public class Engine extends Application {
 			awaitingMove = false;
 		}
 		else {
-			System.out.println(awaitingMove);
 			startX = x; 
 			startY = y;
 			awaitingMove = true;
@@ -229,19 +208,24 @@ public class Engine extends Application {
 	
 	
 	private void gridFn2(Pane p,int sx, int sy, int tx, int ty) {
-		System.out.println(sx+""+sy);
-		System.out.println(tx+""+ty);
-		System.out.println(board[sx-1][sy-1]);
+		//System.out.println(sx+""+sy);
+		//ystem.out.println(tx+""+ty);
+		//System.out.println("###########"+board[sx][sy]);
 
-		int result = RuleSet.validate(board, counter.getValue(), sx-1, sy-1, tx-1, ty-1);
+		int result = RuleSet.validate(board, counter.getValue(), sx, sy, tx, ty);
 		
-		if(result == 0) {
-			makeMove(board[sx-1][sy-1],sx,sy,tx,ty);
+		if(result == 0 || result == 5) {
+			//System.out.println("moving "+board[sx][sy]+" from "+sx+","+sy+" to "+tx+","+ty);
+			makeMove(board[sx][sy],sx,sy,tx,ty);
 			redraw(grid);
-			setTurn(board[tx-1][ty-1].getName(), sx-1, tx-1, ty);
+			setTurn(board[tx][ty].getName(), sx, tx, ty);
+			
+			if(result == 5) {
+				sb.append("check!\n");
+			}
 		}
 		else if(result == 2){
-			sb.append("king in check!");
+			sb.append("king in check!\n");
 		}
 		else if(result == 3) {
 			sb.append("WHITE WINS!\n");
@@ -258,12 +242,23 @@ public class Engine extends Application {
 	}
 
 	public static void makeMove(Piece piece, int x, int y, int tX, int tY){
-		if(board[tX-1][tY-1] != null){
-			scoreboard(board[tX-1][tY-1].getName());
+		if(board[tX][tY] != null){
+			scoreboard(board[tX][tY].getName());
 		}
 		
-		board[x-1][y-1] = null;
-		board[tX-1][tY-1] = piece;
+		board[x][y] = null;
+		board[tX][tY] = piece;
+		
+		
+		/*
+		for (int i = 0; i < 8; i++) {
+			for (int j = 0; j < 8; j++) {
+				if(board[i][j] != null)
+				System.out.println(board[i][j].getName()+" at"+i+","+j);
+			}
+		}
+		*/
+		
 		
 		
 		
@@ -332,7 +327,7 @@ public class Engine extends Application {
 	
 	
 	private String gridState(int x, int y) {
-		Piece element = board[x-1][y-1];
+		Piece element = board[x][y];
 		
 		if(element == null) {
 			return null;
@@ -358,27 +353,27 @@ public class Engine extends Application {
 	
 	private void initBoard(GridPane grid) {
 		//fillBoard();
-		board[0][7] = new Piece(0,7,"rook_b",0,false);
-		board[1][7] = new Piece(1,7,"knight_b",1,false);
-		board[2][7] = new Piece(2,7,"bishop_b",2,false);
-		board[3][7] = new Piece(3,7,"queen_b",3,false);
-		board[4][7] = new Piece(4,7,"king_b",4,false);
-		board[5][7] = new Piece(5,7,"bishop_b",5,false);
-		board[6][7] = new Piece(6,7,"knight_b",6,false);
-		board[7][7] = new Piece(7,7,"rook_b",7,false);
+		board[0][0] = new Piece("rook_b",0,false);
+		board[0][1] = new Piece("knight_b",1,false);
+		board[0][2] = new Piece("bishop_b",2,false);
+		board[0][3] = new Piece("queen_b",3,false);
+		board[0][4] = new Piece("king_b",4,false);
+		board[0][5] = new Piece("bishop_b",5,false);
+		board[0][6] = new Piece("knight_b",6,false);
+		board[0][7] = new Piece("rook_b",7,false);
 		
-		board[0][0]  = new Piece(0,0,"rook_w",8,true);
-		board[1][0]  = new Piece(1,0,"knight_w",9,true);
-		board[2][0]  = new Piece(2,0,"bishop_w",10,true);
-		board[3][0]  = new Piece(3,0,"queen_w",11,true);
-		board[4][0]  = new Piece(4,0,"king_w",12,true);
-		board[5][0] = new Piece(5,0,"bishop_w",13,true);
-		board[6][0]  = new Piece(6,0,"knight_w",14,true);
-		board[7][0]  = new Piece(7,0,"rook_w",15,true);
+		board[7][0]  = new Piece("rook_w",8,true);
+		board[7][1]  = new Piece("knight_w",9,true);
+		board[7][2]  = new Piece("bishop_w",10,true);
+		board[7][3]  = new Piece("queen_w",11,true);
+		board[7][4]  = new Piece("king_w",12,true);
+		board[7][5] = new Piece("bishop_w",13,true);
+		board[7][6]  = new Piece("knight_w",14,true);
+		board[7][7]  = new Piece("rook_w",15,true);
 		
 		for (int i = 0; i < 8; i++) {
-			board[i][6] = new Piece(16+i,6,"pawn_b",16+i,false);
-			board[i][1] = new Piece(24+i,1,"pawn_w",24+i,true);
+			board[1][i] = new Piece("pawn_b",16+i,false);
+			board[6][i] = new Piece("pawn_w",24+i,true);
 		}
 		
 		redraw(grid);
@@ -415,7 +410,7 @@ class Piece{
 	private boolean color;
 
 	
-	public Piece(int a, int b,String name, int id, boolean color) {
+	public Piece(String name, int id, boolean color) {
 		this.name = name;
 		this.id = id;
 		this.color = color;

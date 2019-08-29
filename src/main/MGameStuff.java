@@ -2,12 +2,16 @@ package main;
 
 public class MGameStuff {
 	
-	private static int distance;
+	private static int distance = 0;
 
 
 	public static int distance(Piece piece, int pieceStartX, int pieceStartY, int dx, int dy) {
 		
-		int startX,startY;	
+		int startX,startY;
+		int temp1,temp2;
+		int t;
+		
+		
 		
 		System.out.println("piece: "+piece.getName()+" dx: "+dx+" dy: "+dy+" distance: "+distance);
 		
@@ -21,11 +25,32 @@ public class MGameStuff {
 			
 			startX = 2;
 			startY = 2;
+
 			
-			if((startX+dx < 5 && startX+dx > -1 && startY+dy < 5 && startY+dy > -1)) {
-				return mm[startX+dx][startY+dy] + distance;
+			
+			if((startX-dx < 5 && startX-dx > -1 && startY-dy < 5 && startY-dy > -1)) {
+				System.out.println("matrix achieved! distance: "+(mm[startY-dy][startX-dx] + distance));
+				t =  mm[startY-dy][startX-dx] + distance;
+				distance = 0;
+				return t;
 			}
 			else {
+				
+				distance++;
+				distance(piece,pieceStartX,pieceStartY,dx + Math.negateExact((int)Math.signum(dx)*1), dy + Math.negateExact((int)Math.signum(dy)*2));
+				
+				/* -5,3 -> -4,1
+				*/
+				
+				//-5 + 1 = -4, 5 - 1 = 4
+			
+				//temp2 = distance(piece,pieceStartX,pieceStartY,dx + Math.negateExact((int)Math.signum(dx)*2), dy + Math.negateExact((int)Math.signum(dy)*1));
+				//return Math.min(temp1, temp2);
+				
+				/*
+				
+				compareTransform(piece, dx, dy, pieceStartX, pieceStartY, (int)Math.signum(dx)*1, (int)Math.signum(dy)*2, (int)Math.signum(dx)*2, (int)Math.signum(dy)*1);
+				
 				if(dx > 0 && dy > 0) {
 					compareTransform(piece, dx, dy, pieceStartX, pieceStartY, 1, 2, 2, 1);
 				}
@@ -38,6 +63,7 @@ public class MGameStuff {
 				else if(dx < 0 && dy < 0){
 					compareTransform(piece,dx,dy, pieceStartX, pieceStartY,-1,-2,-2,-1);
 				}
+				*/
 			}
 		}/*
 		else if(piece.getName().contains("bishop")) {
