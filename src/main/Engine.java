@@ -41,31 +41,13 @@ public class Engine extends Application {
 	private static int colorSwitch = -1;
 	
 	@Override
-	public void start(Stage window) throws Exception {
-		
-		int[][] mm =   {{0,0,0,0,0,0,0},
-				  		{0,0,0,770,0,0,0},
-				  		{0,0,1,1,1,0,0},
-				  		{0,2,2,2,2,2,0},
-				  		{3,3,3,3,3,3,3},
-				  		{4,4,4,4,4,4,4}};
-			
-		
-		System.out.println(mm[1][3]);
-		
-		
-		
+	public void start(Stage window) throws Exception {		
 		initBoard(grid);
 		colorChanger(grid);
 		BorderPane bp = new BorderPane();
 		Scene scene = new Scene(bp,1080,920);
 		window.setScene(scene);
 		window.show();
-		
-		//ImageView imV = new ImageView();
-		//Image board = new Image(getClass().getClassLoader().getResource("resources/grid.png").toExternalForm(),860,860,true,true);
-		//imV.setImage(board);
-		
 		
 		FlowPane sidebar = new FlowPane();
 		Label wgameInfo = new Label("White");
