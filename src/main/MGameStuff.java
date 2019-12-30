@@ -486,6 +486,12 @@ public class MGameStuff {
 		distance = 0;
 	}
 	
+	
+	public static int[][] DistanceMatrix(String ownership, String action){
+		
+		
+	}
+	
 	public static int unitValue(String unit) {
 		int v = 0;
 		if(unit.contains("knight") || unit.contains("bishop")) {

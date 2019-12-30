@@ -4,7 +4,7 @@ import java.util.ArrayList;
 
 public class RuleSet {
 	private static int limit;
-	private static Piece[][] grid = null;
+	private static Piece[][] board = null;
 	private static Piece[][] tempGrid = new Piece[8][8];
 	private static int[] pattern;
 	private static boolean bKingMoved = false;
@@ -37,57 +37,66 @@ public class RuleSet {
 	 * 
 	 */
 	
-	public static int validate(Piece[][] rgrid, boolean white, int startX, int startY, int endX, int endY) {
-		grid = rgrid;
+	public static int validate(Piece[][] rgrid, boolean white, int startX, int startY, int targetX, int targetY) {
+		board = rgrid;
 		limit = 0;
 		int checkResult = -1;
-		
+		int multX = 0;
+		int multY = 0;
 		piecePositions();
+
+		if(targetX < startX && targetY < startY){
+			multX = -1;
+			multY = -1;
+		}
+		else if(targetX < startX && targetY > startY){
+			multX = -1;
+			multY = 1;
+		}
+		else if(targetX > startX && targetY < startY){
+			multX = 1;
+			multY = -1;
+		}
+		else if(targetX > startX || targetY > startY){
+			multX = 1;
+			multY = 1;
+		}
 		
-		/*
-		System.out.println("piece: "+!(parsePattern(grid[startX][startY],startX,startY,endX,endY).equals("error")));
-		pattern = null;
-		System.out.println("blocking: "+!blocking(grid[startX][startY],startX,startY,endX,endY));
-		pattern = null;
-		System.out.println("check: "+!check_mate());
-		pattern = null;
-		*/
 		
 		//trying to move other players piece
-		
-		System.out.println(grid[startX][startY] != null);
-		
-		if(grid[startX][startY] != null && ((white && !grid[startX][startY].getColor()) || (!white && grid[startX][startY].getColor()))) {
+		if(board[startX][startY] != null && ((white && !board[startX][startY].getColor()) || (!white && board[startX][startY].getColor()))) {
 			return 1;
 		}
 		
-		if(grid[startX][startY] != null && !(parsePattern(grid[startX][startY],startX,startY,endX,endY).equals("error")) && 
-				!blocking(grid[startX][startY],grid,startX,startY,endX,endY))
+		//check if something in the way
+		if(board[startX][startY] != null && !(parsePattern(board[startX][startY],startX,startY,targetX,targetY).equals("error")) && 
+				!CheckInBetween(startX,startY,targetX,targetY,multX,multY))
 		{
+			//handle castlings
 			if(bcastlingk) {
-				Piece p = grid[0][7]; 
-				grid[0][7] = null;
-				grid[0][5] = p;
+				Piece p = board[0][7]; 
+				board[0][7] = null;
+				board[0][5] = p;
 			}
 			else if(bcastlingq){
-				Piece p = grid[0][0]; 
-				grid[0][0] = null;
-				grid[0][3] = p;
+				Piece p = board[0][0]; 
+				board[0][0] = null;
+				board[0][3] = p;
 			}
 			else if(wcastlingk) {
-				Piece p = grid[7][7]; 
-				grid[7][7] = null;
-				grid[7][5] = p;
+				Piece p = board[7][7]; 
+				board[7][7] = null;
+				board[7][5] = p;
 			}
 			else if(wcastlingq) {
-				Piece p = grid[7][0]; 
-				grid[7][0] = null;
-				grid[7][3] = p;
+				Piece p = board[7][0]; 
+				board[7][0] = null;
+				board[7][3] = p;
 			}
 			
 			
 			
-			checkResult = king_in_check(white,grid[startX][startY],startX,startY,endX,endY);
+			checkResult = king_in_check(white,board[startX][startY],startX,startY,targetX,targetY);
 
 			//check delivered by opposing piece
 			if(checkResult == 1) {
@@ -103,6 +112,9 @@ public class RuleSet {
 			else if(checkResult == 4) {
 				return 4;
 			}
+			
+			
+			
 			return 0;
 		}
 		return 1;
@@ -116,7 +128,7 @@ public class RuleSet {
 		
 		while(limit < 8){
 			//rotate(p);
-			if(verifyPattern(p,p.getName(),pattern,x,grid[tX][tY])){
+			if(verifyPattern(p,p.getName(),pattern,x,board[tX][tY])){
 				return p.getName();
 			}
 
@@ -180,12 +192,12 @@ public class RuleSet {
 		for (int i = 0; i < 8; i++) {
 			for (int j = 0; j < 8; j++) {
 				if(hostile) {
-					if(grid[i][j] != null && (grid[i][j].getColor() != whitesTurn) && MGameStuff.distance(grid,grid[i][j], j, i, y-i, x-j) == 1){
+					if(board[i][j] != null && (board[i][j].getColor() != whitesTurn) && MGameStuff.distance(board,board[i][j], j, i, y-i, x-j) == 1){
 						return true;
 					}	
 				}
 				else {
-					if(grid[i][j] != null && (grid[i][j].getColor() == whitesTurn) && MGameStuff.distance(grid,grid[i][j], j, i, y-i, x-j) == 1){
+					if(board[i][j] != null && (board[i][j].getColor() == whitesTurn) && MGameStuff.distance(board,board[i][j], j, i, y-i, x-j) == 1){
 						return true;
 					}	
 				}
@@ -263,16 +275,16 @@ public class RuleSet {
 	private static boolean castlingAllowed(int[] pattern, boolean whitesTurn) {
 		if(pattern[0] == -2) {
 			if(whitesTurn) {
-				if(grid[7][5] == null && grid[7][6] == null) {
-					if(rooksMoved[3] == 0 && !wKingMoved && !lineIsUnderAttack(grid,4,7,7,7,whitesTurn,false,true)) {
+				if(board[7][5] == null && board[7][6] == null) {
+					if(rooksMoved[3] == 0 && !wKingMoved && !lineIsUnderAttack(board,4,7,7,7,whitesTurn,false,true)) {
 						wcastlingk = true;
 						return true;
 					}
 				}
 			}
 			else {
-				if(grid[0][5] == null && grid[0][6] == null) {
-					if(rooksMoved[1] == 0 && !bKingMoved && !lineIsUnderAttack(grid,4,0,7,0,whitesTurn,false,true)) {
+				if(board[0][5] == null && board[0][6] == null) {
+					if(rooksMoved[1] == 0 && !bKingMoved && !lineIsUnderAttack(board,4,0,7,0,whitesTurn,false,true)) {
 						bcastlingk = true;
 						return true;
 					}
@@ -281,16 +293,16 @@ public class RuleSet {
 		}
 		else if(pattern[0] == 2) {
 			if(whitesTurn ) {
-				if(grid[7][1] == null && grid[7][2] == null && grid[7][3] == null) {
-					if(rooksMoved[2] == 0 && !wKingMoved && !lineIsUnderAttack(grid,0,7,3,7,whitesTurn,false,true)) {
+				if(board[7][1] == null && board[7][2] == null && board[7][3] == null) {
+					if(rooksMoved[2] == 0 && !wKingMoved && !lineIsUnderAttack(board,0,7,3,7,whitesTurn,false,true)) {
 						wcastlingq = true;
 						return true;
 					}
 				}
 			}
 			else {
-				if(grid[0][1] == null && grid[0][2] == null && grid[0][3] == null) {
-					if(rooksMoved[0] == 0 && !bKingMoved && !lineIsUnderAttack(grid,0,0,3,0,whitesTurn,false,true)) {
+				if(board[0][1] == null && board[0][2] == null && board[0][3] == null) {
+					if(rooksMoved[0] == 0 && !bKingMoved && !lineIsUnderAttack(board,0,0,3,0,whitesTurn,false,true)) {
 						bcastlingq = true;
 						return true;
 					}
@@ -326,80 +338,61 @@ public class RuleSet {
 	*/
 
 
-	protected static boolean blocking(Piece piece, Piece[][] grid, int x,int y,int tX, int tY){
-		//theres something in the way between (exclusive)(x,y) and (tX,tY)(inclusive) while piece is not a knight
-		int tempX = 0;
-		int tempY = 0;
-		int start;
-		int end;
-		
-		System.out.println("blocking line from "+x+","+y+" to "+tX+","+tY+"?");
-		
-		if(grid[tX][tY] != null && (piece.getColor() == grid[tX][tY].getColor())) {
-			return true;	
-		}
-		
-		if(piece.getName().substring(0,6).equals("knight")) {
-			return false;
-		}
-		
-		else{
-			
-			if(x == tX) {
-				start = y;
-				end = tY;
-				tempX = 0;
-			}
-			else if(y == tY) {
-				start = x;
-				end = tX;
-				tempY = 0;
-			}
-			else {
-				start = Math.min(x,tX);
-				end = Math.max(x, tX);
-			}
-			
-			System.out.println("start "+start+" end "+end);
-			
-			
-			
-			for(int i = 1; i < end-start; i++) {
-				
-				
-				if(tY < y) {
-					tempY = y-i;
-				}
-				else if(tY > y){
-					tempY = y+i;
-				}
-				else {
-					tempY = y;
-				}
-				
-				if(tX < x) {
-					tempX = x-i;
-				}
-				else if(tX > x){
-					tempX = x+i;
-				}
-				else {
-					tempX = x;
-				}
-				
-				System.out.println(tempX+", "+tempY);
+	//Checks if there is something in between (X,Y) and (tX,tY)
 
-				
-				
-				if(grid[tempX][tempY] != null) {
-					System.out.println("something ("+grid[tempX][tempY].getName()+") in the way:"+tempX+", "+tempY);
-					return true;
-				}
+	private static boolean CheckInBetween(int X,int Y,int tX,int tY,int multX,int multY){
+		
+		//set local variables
+		
+		int t;
+		int t1;
+		int t2;
+
+		t = Math.abs(tX-X); //Complete movement
+		t1 = X;
+		t2 = Y;
+
+		int i = 0;
+		
+
+
+		while(i < t){
+			t1 += multX;
+			t2 += multY;
+			i++;
+
+			if(i == t && board[X][Y].getColor == board[tX][tY].getColor){
+				log[0] = "0";
+				log[1] = "At "+tX+", "+tY+" presently exists own blocking piece"+board[tX][tY].getName();
+				return true;
 			}
 
-		}
+			if(board[t1][t2] != null ){
+				log[0] = "0";
+				log[1] = "At "+X+", "+i+" presently exists a "+board[X][i].getColor()+" blocking piece"+board[X][i].getName();
+				return true;
+			}
 			
+			if(t1 - tY == 0){
+				//check for next lane
+				if(!CheckInBetween(X,i,tX,tY,multX,multY)){
+					log[0] = "2";
+				}
+				
+				}
+			else if(t2 - tX == 0){
+				//check for next lane
+				if(!CheckInBetween(X,i,tX,tY,multX,multY)){
+					log[0] = "2";
+				}
+			
+			}
+
+			log[0] = "1";
+		}
+		
 		return false;
+
 	}
 	
 	private static void piecePositions() {
@@ -407,11 +400,11 @@ public class RuleSet {
 		for(int i = 0; i < 8; i++) {
 			for(int j = 0; j < 8; j++) {
 				
-				if(grid[i][j] == null) {
+				if(board[i][j] == null) {
 					continue;
 				}
 				else {
-					if(grid[i][j].getName().equals("king_w")) {
+					if(board[i][j].getName().equals("king_w")) {
 						System.out.println("w king x :"+j+" y: "+i);
 						wkingY = i;
 						wkingX = j;
@@ -419,7 +412,7 @@ public class RuleSet {
 							wKingMoved = true;
 						}
 					}	
-					else if(grid[i][j].getName().equals("king_b")) {
+					else if(board[i][j].getName().equals("king_b")) {
 						System.out.println("b king x :"+j+" y: "+i);
 						bkingY = i;
 						bkingX = j;
@@ -427,22 +420,22 @@ public class RuleSet {
 							bKingMoved = true;
 						}
 					}
-					if(grid[i][j].getId() == 0) {
+					if(board[i][j].getId() == 0) {
 						if(i != 0 || j != 0) {
 							rooksMoved[0] = 1;
 						}
 					}
-					else if(grid[i][j].getId() == 7) {
+					else if(board[i][j].getId() == 7) {
 						if(i != 0 || j != 7) {
 							rooksMoved[1] = 1;
 						}
 					}
-					else if(grid[i][j].getId() == 8){
+					else if(board[i][j].getId() == 8){
 						if(i != 7 || j != 0) {
 							rooksMoved[2] = 1;
 						}
 					}
-					else if(grid[i][j].getId() == 15){
+					else if(board[i][j].getId() == 15){
 						if(i != 7 || j != 7) {
 							rooksMoved[3] = 1;
 						}
@@ -460,11 +453,11 @@ public class RuleSet {
 		
 		for (int i = 0; i < 8; i++) {
 			for (int j = 0; j < 8; j++) {
-				if(grid[i][j] == null) {
+				if(board[i][j] == null) {
 					tempGrid[i][j] = null;
 				}
 				else {
-					tempGrid[i][j] = grid[i][j];
+					tempGrid[i][j] = board[i][j];
 				}
 			}
 		}
@@ -483,9 +476,9 @@ public class RuleSet {
 				//first test for check, move causes opposite color king to be in check
 				//then test for illegal move that doesn't resolve check
 				if(whitesTurn) {
-					if(tempGrid[i][j].getColor() && MGameStuff.distance(tempGrid,tempGrid[i][j],j,i,bkingX-j,bkingY-i) == 1) {
+					if(tempGrid[i][j].getColor() && MGameStuff.distance(tempGrid,tempGrid[i][j],i,j,bkingX-i,bkingY-j) == 1) {
 						
-						System.out.println(lineIsUnderAttack(tempGrid,bkingX, bkingY, j, i, whitesTurn, false, false));
+						System.out.println(lineIsUnderAttack(tempGrid,bkingX, bkingY, i, j, whitesTurn, false, false));
 						
 						if(tempGrid[i][j].getName().contains("knight")) {
 							if(squareIsUnderAttack(j, i, whitesTurn, false) || !check_mate(whitesTurn)) {
@@ -496,7 +489,7 @@ public class RuleSet {
 							}
 						}
 						else {
-							if(lineIsUnderAttack(tempGrid, bkingX, bkingY, j, i, whitesTurn, false, false) || !check_mate(whitesTurn)) {
+							if(lineIsUnderAttack(tempGrid, bkingX, bkingY, i, j, whitesTurn, false, false) || !check_mate(whitesTurn)) {
 								return 1;
 							}
 							else {
@@ -542,7 +535,7 @@ public class RuleSet {
 							return 2;
 						}
 						else {
-							if(!blocking(piece, tempGrid, j, i, bkingX, bkingY)) {
+							if(!CheckInBetween(X, Y, tX, tY, multX, multY)){
 								return 2;
 							}
 						}
@@ -557,7 +550,7 @@ public class RuleSet {
 
 	/**
 	 * 
-	 * @return 0 if no mate, 1 for white victory and 1 for black victory
+	 * @return Returns true if checkmate.
 	 */
 	
 	private static boolean check_mate(boolean turn){
@@ -573,28 +566,28 @@ public class RuleSet {
 		
 		//the adjacent square is either under attack or blocked by own piece for the counter to be incremented
 		if(turn) {
-			if(bkingX-1 < 0 || squareIsUnderAttack(bkingX-1, bkingY, turn, true) || (grid[bkingY][bkingX-1] != null && grid[bkingY][bkingX-1].getColor())){
+			if(bkingX-1 < 0 || squareIsUnderAttack(bkingX-1, bkingY, turn, true) || (board[bkingY][bkingX-1] != null && board[bkingY][bkingX-1].getColor())){
 				booleanCounter++;
 			}
-			if(bkingY-1 < 0 || squareIsUnderAttack(bkingX, bkingY-1, turn, true) || (grid[bkingY-1][bkingX] != null && grid[bkingY-1][bkingX].getColor())){
+			if(bkingY-1 < 0 || squareIsUnderAttack(bkingX, bkingY-1, turn, true) || (board[bkingY-1][bkingX] != null && board[bkingY-1][bkingX].getColor())){
 				booleanCounter++;
 			}
-			if(bkingX+1 > 7 || squareIsUnderAttack(bkingX+1, bkingY, turn, true) || (grid[bkingY][bkingX+1] != null && grid[bkingY][bkingX+1].getColor())){
+			if(bkingX+1 > 7 || squareIsUnderAttack(bkingX+1, bkingY, turn, true) || (board[bkingY][bkingX+1] != null && board[bkingY][bkingX+1].getColor())){
 				booleanCounter++;
 			}
-			if(bkingY+1 > 7 || squareIsUnderAttack(bkingX, bkingY+1, turn, true) || (grid[bkingY+1][bkingX] != null && grid[bkingY+1][bkingX].getColor())){
+			if(bkingY+1 > 7 || squareIsUnderAttack(bkingX, bkingY+1, turn, true) || (board[bkingY+1][bkingX] != null && board[bkingY+1][bkingX].getColor())){
 				booleanCounter++;
 			}
-			if((bkingX+1 > 7 && bkingY+1 > 7) || squareIsUnderAttack(bkingX+1, bkingY+1, turn, true) || (grid[bkingY+1][bkingX+1] != null && grid[bkingY+1][bkingX+1].getColor())){
+			if((bkingX+1 > 7 && bkingY+1 > 7) || squareIsUnderAttack(bkingX+1, bkingY+1, turn, true) || (board[bkingY+1][bkingX+1] != null && board[bkingY+1][bkingX+1].getColor())){
 				booleanCounter++;
 			}
-			if((bkingX-1 < 0 && bkingY-1 < 0) || squareIsUnderAttack(bkingX-1, bkingY-1, turn, true) || (grid[bkingY-1][bkingX-1] != null && grid[bkingY-1][bkingX-1].getColor())){
+			if((bkingX-1 < 0 && bkingY-1 < 0) || squareIsUnderAttack(bkingX-1, bkingY-1, turn, true) || (board[bkingY-1][bkingX-1] != null && board[bkingY-1][bkingX-1].getColor())){
 				booleanCounter++;
 			}
-			if((bkingX+1 > 7 && bkingY-1 < 0) || squareIsUnderAttack(bkingX+1, bkingY-1, turn, true) || (grid[bkingY-1][bkingX+1]!= null && grid[bkingY-1][bkingX+1].getColor())){
+			if((bkingX+1 > 7 && bkingY-1 < 0) || squareIsUnderAttack(bkingX+1, bkingY-1, turn, true) || (board[bkingY-1][bkingX+1]!= null && board[bkingY-1][bkingX+1].getColor())){
 				booleanCounter++;
 			}
-			if((bkingX-1 < 0 && bkingY+1 > 7) || squareIsUnderAttack(bkingX-1, bkingY+1, turn, true) || (grid[bkingY+1][bkingX-1] != null && grid[bkingY+1][bkingX-1].getColor())){
+			if((bkingX-1 < 0 && bkingY+1 > 7) || squareIsUnderAttack(bkingX-1, bkingY+1, turn, true) || (board[bkingY+1][bkingX-1] != null && board[bkingY+1][bkingX-1].getColor())){
 				booleanCounter++;
 			}
 		}
@@ -604,28 +597,28 @@ public class RuleSet {
 		}
 		
 		else {
-			if(wkingX-1 < 0 || squareIsUnderAttack(wkingX-1, wkingY, turn, true) || (grid[wkingY][wkingX-1] != null && !grid[wkingY][wkingX-1].getColor())){
+			if(wkingX-1 < 0 || squareIsUnderAttack(wkingX-1, wkingY, turn, true) || (board[wkingY][wkingX-1] != null && !board[wkingY][wkingX-1].getColor())){
 				booleanCounter++;
 			}
-			if(wkingY-1 < 0 || squareIsUnderAttack(wkingX, wkingY-1, turn, true) || (grid[wkingY-1][wkingX] != null && !grid[wkingY-1][wkingX].getColor())){
+			if(wkingY-1 < 0 || squareIsUnderAttack(wkingX, wkingY-1, turn, true) || (board[wkingY-1][wkingX] != null && !board[wkingY-1][wkingX].getColor())){
 				booleanCounter++;
 			}
-			if(wkingX+1 > 7 || squareIsUnderAttack(wkingX+1, wkingY, turn, true) || (grid[wkingY][wkingX+1] != null && !grid[wkingY][wkingX+1].getColor())){
+			if(wkingX+1 > 7 || squareIsUnderAttack(wkingX+1, wkingY, turn, true) || (board[wkingY][wkingX+1] != null && !board[wkingY][wkingX+1].getColor())){
 				booleanCounter++;
 			}
-			if(wkingY+1 > 7 || squareIsUnderAttack(wkingX, wkingY+1, turn, true) || (grid[wkingY+1][wkingX] != null && !grid[wkingY+1][wkingX].getColor())){
+			if(wkingY+1 > 7 || squareIsUnderAttack(wkingX, wkingY+1, turn, true) || (board[wkingY+1][wkingX] != null && !board[wkingY+1][wkingX].getColor())){
 				booleanCounter++;
 			}
-			if((wkingX+1 > 7 && wkingY+1 > 7) || squareIsUnderAttack(wkingX+1, wkingY+1, turn, true) || (grid[wkingY+1][wkingX+1] != null && !grid[wkingY+1][wkingX+1].getColor())){
+			if((wkingX+1 > 7 && wkingY+1 > 7) || squareIsUnderAttack(wkingX+1, wkingY+1, turn, true) || (board[wkingY+1][wkingX+1] != null && !board[wkingY+1][wkingX+1].getColor())){
 				booleanCounter++;
 			}
-			if((wkingX-1 < 0 && wkingY-1 < 0) || squareIsUnderAttack(wkingX-1, wkingY-1, turn, true) || (grid[wkingY-1][wkingX-1] != null && !grid[wkingY-1][wkingX-1].getColor())){
+			if((wkingX-1 < 0 && wkingY-1 < 0) || squareIsUnderAttack(wkingX-1, wkingY-1, turn, true) || (board[wkingY-1][wkingX-1] != null && !board[wkingY-1][wkingX-1].getColor())){
 				booleanCounter++;
 			}
-			if((wkingX+1 > 7 && wkingY-1 < 0) || squareIsUnderAttack(wkingX+1, wkingY-1, turn, true) || (grid[wkingY-1][wkingX+1] != null && !grid[wkingY-1][wkingX+1].getColor())){
+			if((wkingX+1 > 7 && wkingY-1 < 0) || squareIsUnderAttack(wkingX+1, wkingY-1, turn, true) || (board[wkingY-1][wkingX+1] != null && !board[wkingY-1][wkingX+1].getColor())){
 				booleanCounter++;
 			}
-			if((wkingX-1 < 0 && wkingY+1 > 7) || squareIsUnderAttack(wkingX-1, wkingY+1, turn, true) || (grid[wkingY+1][wkingX-1] != null && !grid[wkingY+1][wkingX-1].getColor())){
+			if((wkingX-1 < 0 && wkingY+1 > 7) || squareIsUnderAttack(wkingX-1, wkingY+1, turn, true) || (board[wkingY+1][wkingX-1] != null && !board[wkingY+1][wkingX-1].getColor())){
 				booleanCounter++;
 			}
 			System.out.println(booleanCounter);
@@ -697,89 +690,96 @@ public class RuleSet {
 		
 		}
 		*/
-		/*
+		
 		if(bkingX == 0  && bkingY == 7) {
-			if(lineIsUnderAttack(bkingX, bkingY, bkingX+1, bkingY, turn, true, true)) {
+			if(lineIsUnderAttack(board, bkingX, bkingY, bkingX+1, bkingY, turn, true, true)) {
 				booleanCounter++;
 			}
-			if(lineIsUnderAttack(bkingX, bkingY-1, bkingX+1, bkingY-1, turn, true, true)) {
+			if(lineIsUnderAttack(board, bkingX, bkingY-1, bkingX+1, bkingY-1, turn, true, true)) {
 				booleanCounter++;
 			}
 		}
 		else if(bkingX == 0 && bkingY == 0) {
-			if(lineIsUnderAttack(bkingX, bkingY, bkingX+1, bkingY, turn, true, true)) {
+			if(lineIsUnderAttack(board, bkingX, bkingY, bkingX+1, bkingY, turn, true, true)) {
 				booleanCounter++;
 			}
-			if(lineIsUnderAttack(bkingX, bkingY+1, bkingX+1, bkingY+1, turn, true, true)) {
+			if(lineIsUnderAttack(board, bkingX, bkingY+1, bkingX+1, bkingY+1, turn, true, true)) {
 				booleanCounter++;
 			}
 		}
 		else if(bkingX == 0 && bkingY < 7) {
-			if(lineIsUnderAttack(bkingX, bkingY, bkingX+1, bkingY, turn, true, true)) {
+			if(lineIsUnderAttack(board, bkingX, bkingY, bkingX+1, bkingY, turn, true, true)) {
 				booleanCounter++;
 			}
-			if(lineIsUnderAttack(bkingX, bkingY-1, bkingX+1, bkingY-1, turn, true, true)) {
+			if(lineIsUnderAttack(board, bkingX, bkingY-1, bkingX+1, bkingY-1, turn, true, true)) {
 				booleanCounter++;
 			}
-			if(lineIsUnderAttack(bkingX, bkingY+1, bkingX+1, bkingY+1, turn, true, true)) {
+			if(lineIsUnderAttack(board, bkingX, bkingY+1, bkingX+1, bkingY+1, turn, true, true)) {
 				booleanCounter++;
 			}
 		}
 		else if(bkingX == 7  && bkingY == 0) {
-			if(lineIsUnderAttack(bkingX-1, bkingY, bkingX, bkingY, turn, true, true)) {
+			if(lineIsUnderAttack(board, bkingX-1, bkingY, bkingX, bkingY, turn, true, true)) {
 				booleanCounter++;
 			}
-			if(lineIsUnderAttack(bkingX-1, bkingY+1, bkingX, bkingY+1, turn, true, true)) {
+			if(lineIsUnderAttack(board, bkingX-1, bkingY+1, bkingX, bkingY+1, turn, true, true)) {
 				booleanCounter++;
 			}
 		}
 		else if(bkingX == 7 && bkingY == 7) {
-			if(lineIsUnderAttack(bkingX-1, bkingY, bkingX, bkingY, turn, true, true)) {
+			if(lineIsUnderAttack(board, bkingX-1, bkingY, bkingX, bkingY, turn, true, true)) {
 				booleanCounter++;
 			}
-			if(lineIsUnderAttack(bkingX-1, bkingY-1, bkingX, bkingY-1, turn, true, true)) {
+			if(lineIsUnderAttack(board, bkingX-1, bkingY-1, bkingX, bkingY-1, turn, true, true)) {
 				booleanCounter++;
 			}
 		}
 		else if(bkingX == 7 && bkingY > 0) {
-			if(lineIsUnderAttack(bkingX-1, bkingY, bkingX, bkingY, turn, true, true)) {
+			if(lineIsUnderAttack(board, bkingX-1, bkingY, bkingX, bkingY, turn, true, true)) {
 				booleanCounter++;
 			}
-			if(lineIsUnderAttack(bkingX-1, bkingY-1, bkingX, bkingY-1, turn, true, true)) {
+			if(lineIsUnderAttack(board, bkingX-1, bkingY-1, bkingX, bkingY-1, turn, true, true)) {
 				booleanCounter++;
 			}
-			if(lineIsUnderAttack(bkingX-1, bkingY+1, bkingX, bkingY+1, turn, true, true)) {
+			if(lineIsUnderAttack(board, bkingX-1, bkingY+1, bkingX, bkingY+1, turn, true, true)) {
 				booleanCounter++;
 			}
 		}
 		else if(bkingX == 0) {
-			if(lineIsUnderAttack(bkingX-1, bkingY, bkingX+1, bkingY, turn, true, true)) {
+			if(lineIsUnderAttack(board, bkingX-1, bkingY, bkingX+1, bkingY, turn, true, true)) {
 				booleanCounter++;
 			}
-			if(lineIsUnderAttack(bkingX-1, bkingY+1, bkingX+1, bkingY+1, turn, true, true)) {
+			if(lineIsUnderAttack(board, bkingX-1, bkingY+1, bkingX+1, bkingY+1, turn, true, true)) {
 				booleanCounter++;
 			}
 		}
 		else if(bkingX == 7) {
-			if(lineIsUnderAttack(bkingX-1, bkingY, bkingX+1, bkingY, turn, true, true)) {
+			if(lineIsUnderAttack(board, bkingX-1, bkingY, bkingX+1, bkingY, turn, true, true)) {
 				booleanCounter++;
 			}
-			if(lineIsUnderAttack(bkingX-1, bkingY-1, bkingX+1, bkingY-1, turn, true, true)) {
+			if(lineIsUnderAttack(board, bkingX-1, bkingY-1, bkingX+1, bkingY-1, turn, true, true)) {
 				booleanCounter++;
 			}
 		}
 		else {
-			if(lineIsUnderAttack(bkingX-1, bkingY, bkingX+1, bkingY, turn, true, true)) {
+			if(lineIsUnderAttack(board, bkingX-1, bkingY, bkingX+1, bkingY, turn, true, true)) {
 				booleanCounter++;
 			}
-			if(lineIsUnderAttack(bkingX-1, bkingY-1, bkingX+1, bkingY-1, turn, true, true)) {
+			if(lineIsUnderAttack(board, bkingX-1, bkingY-1, bkingX+1, bkingY-1, turn, true, true)) {
 				booleanCounter++;
 			}
-			if(lineIsUnderAttack(bkingX-1, bkingY+1, bkingX+1, bkingY+1, turn, true, true)) {
+			if(lineIsUnderAttack(board, bkingX-1, bkingY+1, bkingX+1, bkingY+1, turn, true, true)) {
 				booleanCounter++;
 			}
 		}
-		*/
+		
+		if(booleanCounter == 8) {
+			return true;
+		}
+		
+		
+		
+		
 		
 		
 		return false;
