@@ -10,10 +10,10 @@ public class RuleSet {
 	private static boolean bKingMoved = false;
 	private static boolean wKingMoved = false;
 	private static int[] rooksMoved = {0,0,0,0};
-	private static int bkingX = 0;
-	private static int bkingY = 0;
-	private static int wkingX = 0;
-	private static int wkingY = 0;
+	private static int enemyKingY = 0;
+	private static int enemyKingX = 0;
+	private static int ownKingY = 0;
+	private static int ownKingX = 0;
 	private static boolean wcastlingk = false;
 	private static boolean wcastlingq = false;
 	private static boolean bcastlingk = false;
@@ -34,16 +34,18 @@ public class RuleSet {
 	 * 2 if king in check 
 	 * 3 if checkmate for white
 	 * 4 if checkmate for black
-	 * 
+	 * 5 if check
+	 * 6 if draw
 	 */
 	
 	public static int validate(Piece[][] rgrid, boolean white, int startX, int startY, int targetX, int targetY) {
 		board = rgrid;
 		limit = 0;
 		int checkResult = -1;
+		boolean isDraw;
 		int multX = 0;
 		int multY = 0;
-		piecePositions();
+		KingAndRookPositions(white);
 
 		if(targetX < startX && targetY < startY){
 			multX = -1;
@@ -97,26 +99,30 @@ public class RuleSet {
 			
 			
 			checkResult = king_in_check(white,board[startX][startY],startX,startY,targetX,targetY);
+			
+			isDraw = checkDraw(board,white);
 
-			//check delivered by opposing piece
-			if(checkResult == 1) {
-				return 5;
-			}
 			//illegal move, check not resolved
-			else if (checkResult == 2){
+			if (checkResult == 2){
 				return 2;
 			}
-			if(checkResult == 3) {
+			else if(checkResult == 3) {
 				return 3;
 			}
 			else if(checkResult == 4) {
 				return 4;
 			}
-			
-			
-			
+			//check delivered by opposing piece
+			else if(checkResult == 1) {
+				return 5;
+			}
+			if(isDraw) {
+				return 6;
+			}
+	
 			return 0;
 		}
+		
 		return 1;
 	}
 	
@@ -340,86 +346,71 @@ public class RuleSet {
 
 	//Checks if there is something in between (X,Y) and (tX,tY)
 
-	private static boolean CheckInBetween(int X,int Y,int tX,int tY,int multX,int multY){
+	static boolean CheckInBetween(int X, int Y, int tX, int tY, int multX, int multY){
 		
-		//set local variables
+		//set local variables:
 		
-		int t;
-		int t1;
-		int t2;
+		int t1; //local variable to hold temporary X value
+		int t2; //local variable to hold temporary Y value
+		int t = Math.abs(tX-X); //Complete movement, absolute value
+		
+		t1 = X; //set start temp x as X
+		t2 = Y; //set start temp y as Y
 
-		t = Math.abs(tX-X); //Complete movement
-		t1 = X;
-		t2 = Y;
-
-		int i = 0;
+		int i = 0; //init iterator i
 		
 
-
+		//iterate t times
 		while(i < t){
+			//either decrease or increase both temp vars by one, depending on the direction (multX, multY)
 			t1 += multX;
 			t2 += multY;
 			i++;
 
-			if(i == t && board[X][Y].getColor == board[tX][tY].getColor){
-				log[0] = "0";
-				log[1] = "At "+tX+", "+tY+" presently exists own blocking piece"+board[tX][tY].getName();
+			//own blocking piece
+			if(i == t && board[X][Y].getColor() == board[tX][tY].getColor()){
+				System.out.println("At "+tX+", "+tY+" presently exists own blocking piece"+board[tX][tY].getName());
 				return true;
 			}
 
+			//another blocking piece
 			if(board[t1][t2] != null ){
-				log[0] = "0";
-				log[1] = "At "+X+", "+i+" presently exists a "+board[X][i].getColor()+" blocking piece"+board[X][i].getName();
+				System.out.println("At "+X+", "+i+" presently exists a "+board[X][i].getColor()+" blocking piece"+board[X][i].getName());
 				return true;
 			}
 			
-			if(t1 - tY == 0){
-				//check for next lane
-				if(!CheckInBetween(X,i,tX,tY,multX,multY)){
-					log[0] = "2";
-				}
-				
-				}
-			else if(t2 - tX == 0){
-				//check for next lane
-				if(!CheckInBetween(X,i,tX,tY,multX,multY)){
-					log[0] = "2";
-				}
-			
-			}
-
-			log[0] = "1";
 		}
 		
 		return false;
 
 	}
 	
-	private static void piecePositions() {
+	private static void KingAndRookPositions(boolean color) {
 		
-		for(int i = 0; i < 8; i++) {
-			for(int j = 0; j < 8; j++) {
+		for(int j = 0; j < 8; j++) {
+			for(int i = 0; i < 8; i++) {
 				
 				if(board[i][j] == null) {
 					continue;
 				}
 				else {
-					if(board[i][j].getName().equals("king_w")) {
-						System.out.println("w king x :"+j+" y: "+i);
-						wkingY = i;
-						wkingX = j;
-						if(wkingY != 7 || wkingX != 4) {
+					if(board[i][j].getName().contains("king") && (board[i][j].getColor() == color)) {
+						System.out.println("own king x :"+j+" y: "+i);
+						ownKingX = i;
+						ownKingY = j;
+						if((ownKingX != 7 || ownKingY != 4) && board[i][j].getColor()) {
 							wKingMoved = true;
 						}
 					}	
-					else if(board[i][j].getName().equals("king_b")) {
-						System.out.println("b king x :"+j+" y: "+i);
-						bkingY = i;
-						bkingX = j;
-						if(bkingY != 0 || bkingX != 4) {
+					else if(board[i][j].getName().contains("king") && (board[i][j].getColor() != color)) {
+						System.out.println("enemy king x :"+j+" y: "+i);
+						enemyKingX = i;
+						enemyKingY = j;
+						if((enemyKingX != 0 || enemyKingY != 4) && !board[i][j].getColor()) {
 							bKingMoved = true;
 						}
 					}
+					
 					if(board[i][j].getId() == 0) {
 						if(i != 0 || j != 0) {
 							rooksMoved[0] = 1;
@@ -445,105 +436,37 @@ public class RuleSet {
 		}	
 	}
 
+	/**
+	 * 
+	 * @param current turn
+	 * @param piece
+	 * @param start X
+	 * @param start Y
+	 * @param target X
+	 * @param target Y
+	 * @return 1 if check, 2 if illegal move because of check, and 0 if no check 
+	 */
+	
 	private static int king_in_check(boolean whitesTurn, Piece piece, int sx, int sy, int tx, int ty){
-		//exists different-colored piece with legal next move, with targetX,targetY = kings (x,y)
 		
-		//copy state so we can test for checks
-
+		int index = 0;
+	
+		ArrayList<Piece>l = MGameStuff.ReturnAllPieces(board, !whitesTurn);
 		
-		for (int i = 0; i < 8; i++) {
-			for (int j = 0; j < 8; j++) {
-				if(board[i][j] == null) {
-					tempGrid[i][j] = null;
-				}
-				else {
-					tempGrid[i][j] = board[i][j];
-				}
+		//iterate the l array for enemy pieces which have distance of ONE to our own King!
+		//return 1 if found
+		
+		
+		while(index < l.size())
+		{
+			if(MGameStuff.distance(l.get(index), l.get(index).getX(), l.get(index).getY(), ownKingX, ownKingY) == 1) {
+				return 1;
 			}
+			index++;
 		}
-		
-		tempGrid[sx][sy] = null;
-		tempGrid[tx][ty] = piece;
-		
-					
-			
-		for(int i = 0; i < 8; i++) {
-			for(int j = 0; j < 8; j++) {
-				
-				if(tempGrid[i][j] == null) {
-					continue;
-				}
-				//first test for check, move causes opposite color king to be in check
-				//then test for illegal move that doesn't resolve check
-				if(whitesTurn) {
-					if(tempGrid[i][j].getColor() && MGameStuff.distance(tempGrid,tempGrid[i][j],i,j,bkingX-i,bkingY-j) == 1) {
-						
-						System.out.println(lineIsUnderAttack(tempGrid,bkingX, bkingY, i, j, whitesTurn, false, false));
-						
-						if(tempGrid[i][j].getName().contains("knight")) {
-							if(squareIsUnderAttack(j, i, whitesTurn, false) || !check_mate(whitesTurn)) {
-								return 1;
-							}
-							else {
-								return 3;
-							}
-						}
-						else {
-							if(lineIsUnderAttack(tempGrid, bkingX, bkingY, i, j, whitesTurn, false, false) || !check_mate(whitesTurn)) {
-								return 1;
-							}
-							else {
-								return 3;
-							}
-						}
-					}
-					else if(!tempGrid[i][j].getColor() && MGameStuff.distance(tempGrid,tempGrid[i][j],j,i,wkingX-j,wkingY-i) == 1) {
-						if(tempGrid[i][j].getName().contains("knight")) {
-							return 2;
-						}
-						else {
-							if(!blocking(piece, tempGrid, j, i, wkingX, wkingY)) {
-								System.out.println("");
-								System.out.println("-------"+tempGrid[5][2]);
-								return 2;
-							}
-						}
-					}
-				}
-				else {				
-					if(!tempGrid[i][j].getColor() && MGameStuff.distance(tempGrid,tempGrid[i][j],j,i,wkingX-j,wkingY-i) == 1) {
-						if(tempGrid[i][j].getName().contains("knight")) {
-							if(squareIsUnderAttack(j, i, whitesTurn, false) || !check_mate(whitesTurn)) {
-								return 1;
-							}
-							else {
-								return 4;
-							}
 							
-						}
-						else {
-							if(lineIsUnderAttack(tempGrid, wkingX, wkingY, j, i, whitesTurn, false, false) || !check_mate(whitesTurn)) {
-								return 1;
-							}
-							else {
-								return 4;
-							}
-						}
-					}
-					else if(tempGrid[i][j].getColor() && MGameStuff.distance(tempGrid,tempGrid[i][j],j,i,bkingX-j,bkingY-i) == 1) {
-						if(tempGrid[i][j].getName().contains("knight")) {
-							return 2;
-						}
-						else {
-							if(!CheckInBetween(X, Y, tX, tY, multX, multY)){
-								return 2;
-							}
-						}
-						
-					}
-				}
-			}
-		}							
+		
+		//TODO: unresolved checks
 		
 		return 0;
 	}
@@ -555,223 +478,10 @@ public class RuleSet {
 	
 	private static boolean check_mate(boolean turn){
 		
-		int startX;
-		int startY;
-		int endX;
-		int endY;
+		//TODO: Checkmating
 		
 		int booleanCounter = 0;
-		System.out.println("####################");
 
-		
-		//the adjacent square is either under attack or blocked by own piece for the counter to be incremented
-		if(turn) {
-			if(bkingX-1 < 0 || squareIsUnderAttack(bkingX-1, bkingY, turn, true) || (board[bkingY][bkingX-1] != null && board[bkingY][bkingX-1].getColor())){
-				booleanCounter++;
-			}
-			if(bkingY-1 < 0 || squareIsUnderAttack(bkingX, bkingY-1, turn, true) || (board[bkingY-1][bkingX] != null && board[bkingY-1][bkingX].getColor())){
-				booleanCounter++;
-			}
-			if(bkingX+1 > 7 || squareIsUnderAttack(bkingX+1, bkingY, turn, true) || (board[bkingY][bkingX+1] != null && board[bkingY][bkingX+1].getColor())){
-				booleanCounter++;
-			}
-			if(bkingY+1 > 7 || squareIsUnderAttack(bkingX, bkingY+1, turn, true) || (board[bkingY+1][bkingX] != null && board[bkingY+1][bkingX].getColor())){
-				booleanCounter++;
-			}
-			if((bkingX+1 > 7 && bkingY+1 > 7) || squareIsUnderAttack(bkingX+1, bkingY+1, turn, true) || (board[bkingY+1][bkingX+1] != null && board[bkingY+1][bkingX+1].getColor())){
-				booleanCounter++;
-			}
-			if((bkingX-1 < 0 && bkingY-1 < 0) || squareIsUnderAttack(bkingX-1, bkingY-1, turn, true) || (board[bkingY-1][bkingX-1] != null && board[bkingY-1][bkingX-1].getColor())){
-				booleanCounter++;
-			}
-			if((bkingX+1 > 7 && bkingY-1 < 0) || squareIsUnderAttack(bkingX+1, bkingY-1, turn, true) || (board[bkingY-1][bkingX+1]!= null && board[bkingY-1][bkingX+1].getColor())){
-				booleanCounter++;
-			}
-			if((bkingX-1 < 0 && bkingY+1 > 7) || squareIsUnderAttack(bkingX-1, bkingY+1, turn, true) || (board[bkingY+1][bkingX-1] != null && board[bkingY+1][bkingX-1].getColor())){
-				booleanCounter++;
-			}
-		}
-		System.out.println(booleanCounter);
-		if(booleanCounter == 8) {
-			return true;
-		}
-		
-		else {
-			if(wkingX-1 < 0 || squareIsUnderAttack(wkingX-1, wkingY, turn, true) || (board[wkingY][wkingX-1] != null && !board[wkingY][wkingX-1].getColor())){
-				booleanCounter++;
-			}
-			if(wkingY-1 < 0 || squareIsUnderAttack(wkingX, wkingY-1, turn, true) || (board[wkingY-1][wkingX] != null && !board[wkingY-1][wkingX].getColor())){
-				booleanCounter++;
-			}
-			if(wkingX+1 > 7 || squareIsUnderAttack(wkingX+1, wkingY, turn, true) || (board[wkingY][wkingX+1] != null && !board[wkingY][wkingX+1].getColor())){
-				booleanCounter++;
-			}
-			if(wkingY+1 > 7 || squareIsUnderAttack(wkingX, wkingY+1, turn, true) || (board[wkingY+1][wkingX] != null && !board[wkingY+1][wkingX].getColor())){
-				booleanCounter++;
-			}
-			if((wkingX+1 > 7 && wkingY+1 > 7) || squareIsUnderAttack(wkingX+1, wkingY+1, turn, true) || (board[wkingY+1][wkingX+1] != null && !board[wkingY+1][wkingX+1].getColor())){
-				booleanCounter++;
-			}
-			if((wkingX-1 < 0 && wkingY-1 < 0) || squareIsUnderAttack(wkingX-1, wkingY-1, turn, true) || (board[wkingY-1][wkingX-1] != null && !board[wkingY-1][wkingX-1].getColor())){
-				booleanCounter++;
-			}
-			if((wkingX+1 > 7 && wkingY-1 < 0) || squareIsUnderAttack(wkingX+1, wkingY-1, turn, true) || (board[wkingY-1][wkingX+1] != null && !board[wkingY-1][wkingX+1].getColor())){
-				booleanCounter++;
-			}
-			if((wkingX-1 < 0 && wkingY+1 > 7) || squareIsUnderAttack(wkingX-1, wkingY+1, turn, true) || (board[wkingY+1][wkingX-1] != null && !board[wkingY+1][wkingX-1].getColor())){
-				booleanCounter++;
-			}
-			System.out.println(booleanCounter);
-			
-			if(booleanCounter == 8) {
-				return true;
-			}
-		
-		}
-		
-		/*
-		if(turn) {
-		
-			if(bkingX-1 < 0) {
-				startX = bkingX;
-			}
-			else {
-				startX = bkingX-1;
-			}
-			if(bkingX+1 > 7) {
-				endX = bkingX;
-			}
-			
-			else {
-				endX = bkingX+1;
-			}
-			
-			if(bkingY-1 < 0) {
-				startY = bkingY;
-			}
-			else {
-				startY = bkingY-1;
-			}
-			if(bkingY+1 > 7) {
-				endY = bkingY;
-			}
-			else {
-				endY = bkingY+1;
-			}	
-		}
-			
-	
-		else {
-			if(wkingX-1 < 0) {
-				startX = wkingX;
-			}
-			else {
-				startX = wkingX-1;
-			}
-			if(wkingX+1 > 7) {
-				startX = wkingX;
-			}
-			else {
-				startX = wkingX+1;
-			}
-			
-			if(wkingY-1 < 0) {
-				startY = wkingY;
-			}
-			else {
-				startY = wkingY-1;
-			}
-			if(wkingY+1 > 7) {
-				startY = wkingY;
-			}
-			else {
-				startY = wkingY+1;
-			}
-		
-		}
-		*/
-		
-		if(bkingX == 0  && bkingY == 7) {
-			if(lineIsUnderAttack(board, bkingX, bkingY, bkingX+1, bkingY, turn, true, true)) {
-				booleanCounter++;
-			}
-			if(lineIsUnderAttack(board, bkingX, bkingY-1, bkingX+1, bkingY-1, turn, true, true)) {
-				booleanCounter++;
-			}
-		}
-		else if(bkingX == 0 && bkingY == 0) {
-			if(lineIsUnderAttack(board, bkingX, bkingY, bkingX+1, bkingY, turn, true, true)) {
-				booleanCounter++;
-			}
-			if(lineIsUnderAttack(board, bkingX, bkingY+1, bkingX+1, bkingY+1, turn, true, true)) {
-				booleanCounter++;
-			}
-		}
-		else if(bkingX == 0 && bkingY < 7) {
-			if(lineIsUnderAttack(board, bkingX, bkingY, bkingX+1, bkingY, turn, true, true)) {
-				booleanCounter++;
-			}
-			if(lineIsUnderAttack(board, bkingX, bkingY-1, bkingX+1, bkingY-1, turn, true, true)) {
-				booleanCounter++;
-			}
-			if(lineIsUnderAttack(board, bkingX, bkingY+1, bkingX+1, bkingY+1, turn, true, true)) {
-				booleanCounter++;
-			}
-		}
-		else if(bkingX == 7  && bkingY == 0) {
-			if(lineIsUnderAttack(board, bkingX-1, bkingY, bkingX, bkingY, turn, true, true)) {
-				booleanCounter++;
-			}
-			if(lineIsUnderAttack(board, bkingX-1, bkingY+1, bkingX, bkingY+1, turn, true, true)) {
-				booleanCounter++;
-			}
-		}
-		else if(bkingX == 7 && bkingY == 7) {
-			if(lineIsUnderAttack(board, bkingX-1, bkingY, bkingX, bkingY, turn, true, true)) {
-				booleanCounter++;
-			}
-			if(lineIsUnderAttack(board, bkingX-1, bkingY-1, bkingX, bkingY-1, turn, true, true)) {
-				booleanCounter++;
-			}
-		}
-		else if(bkingX == 7 && bkingY > 0) {
-			if(lineIsUnderAttack(board, bkingX-1, bkingY, bkingX, bkingY, turn, true, true)) {
-				booleanCounter++;
-			}
-			if(lineIsUnderAttack(board, bkingX-1, bkingY-1, bkingX, bkingY-1, turn, true, true)) {
-				booleanCounter++;
-			}
-			if(lineIsUnderAttack(board, bkingX-1, bkingY+1, bkingX, bkingY+1, turn, true, true)) {
-				booleanCounter++;
-			}
-		}
-		else if(bkingX == 0) {
-			if(lineIsUnderAttack(board, bkingX-1, bkingY, bkingX+1, bkingY, turn, true, true)) {
-				booleanCounter++;
-			}
-			if(lineIsUnderAttack(board, bkingX-1, bkingY+1, bkingX+1, bkingY+1, turn, true, true)) {
-				booleanCounter++;
-			}
-		}
-		else if(bkingX == 7) {
-			if(lineIsUnderAttack(board, bkingX-1, bkingY, bkingX+1, bkingY, turn, true, true)) {
-				booleanCounter++;
-			}
-			if(lineIsUnderAttack(board, bkingX-1, bkingY-1, bkingX+1, bkingY-1, turn, true, true)) {
-				booleanCounter++;
-			}
-		}
-		else {
-			if(lineIsUnderAttack(board, bkingX-1, bkingY, bkingX+1, bkingY, turn, true, true)) {
-				booleanCounter++;
-			}
-			if(lineIsUnderAttack(board, bkingX-1, bkingY-1, bkingX+1, bkingY-1, turn, true, true)) {
-				booleanCounter++;
-			}
-			if(lineIsUnderAttack(board, bkingX-1, bkingY+1, bkingX+1, bkingY+1, turn, true, true)) {
-				booleanCounter++;
-			}
-		}
 		
 		if(booleanCounter == 8) {
 			return true;
@@ -786,7 +496,17 @@ public class RuleSet {
 	}
 
 
+	
+	
+	
 
+	private static boolean checkDraw(Piece[][] board, boolean color) {
+		
+		//TODO: Draws
+		
+		
+		return false;
+	}
 
 
 	
