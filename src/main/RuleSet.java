@@ -45,7 +45,7 @@ public class RuleSet {
 		boolean isDraw;
 		int multX = 0;
 		int multY = 0;
-		KingAndRookPositions(white);
+		ReturnKingAndRookPositions(white);
 
 		if(targetX < startX && targetY < startY){
 			multX = -1;
@@ -385,7 +385,9 @@ public class RuleSet {
 
 	}
 	
-	private static void KingAndRookPositions(boolean color) {
+	public static int[] ReturnKingAndRookPositions(boolean color) {
+		
+		int[] t = {0,0,0,0};
 		
 		for(int j = 0; j < 8; j++) {
 			for(int i = 0; i < 8; i++) {
@@ -398,6 +400,8 @@ public class RuleSet {
 						System.out.println("own king x :"+j+" y: "+i);
 						ownKingX = i;
 						ownKingY = j;
+						t[0] = i;
+						t[1] = j;
 						if((ownKingX != 7 || ownKingY != 4) && board[i][j].getColor()) {
 							wKingMoved = true;
 						}
@@ -406,6 +410,8 @@ public class RuleSet {
 						System.out.println("enemy king x :"+j+" y: "+i);
 						enemyKingX = i;
 						enemyKingY = j;
+						t[2] = i;
+						t[3] = j;
 						if((enemyKingX != 0 || enemyKingY != 4) && !board[i][j].getColor()) {
 							bKingMoved = true;
 						}
@@ -434,6 +440,9 @@ public class RuleSet {
 				}
 			}
 		}	
+		
+		
+		return t;
 	}
 
 	/**

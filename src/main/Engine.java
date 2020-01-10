@@ -295,7 +295,7 @@ public class Engine extends Application {
 			
 		}
 		else if(counter.get() == BotColor) {
-			move = MSystem.MainFunction(board);
+			move = MSystem.MainFunction(board,turn,BotColor);
 			
 			//handle resignation
 			if(move.length == 0) {

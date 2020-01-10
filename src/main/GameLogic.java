@@ -14,12 +14,12 @@ public class GameLogic {
 	 * 
 	 */
 	
-	public static int[] generate(Piece[][] board, int turnNumber, int[][][][][] stateVector) {
+	public static int[] generate(Piece[][] board, int turnNumber, boolean white, int[][][][][] stateVector) {
 		
 		ArrayList<int[]> candidateMoves = new ArrayList<int[]>();
 		
 		//generate moves
-		computeRealtimeFunctions(board, turnNumber,stateVector);
+		computeRealtimeFunctions(board, white, turnNumber, stateVector);
 		
 		//fill arraylist, if generated list has a % sum lower than certain %, post resign flag
 		
@@ -30,27 +30,28 @@ public class GameLogic {
 		//sort arraylist according to % (ascending)
 
 		
-		/* int[] bestMove = new int[4];
-		 * bestMove[0] = candidateMoves.get(0)[0];
-		 * bestMove[1] = candidateMoves.get(0)[1];
-		 * bestMove[2] = candidateMoves.get(0)[2];
-		 * bestMove[3] = candidateMoves.get(0)[3];
-		 */
+		int[] bestMove = new int[4];
+		bestMove[0] = candidateMoves.get(0)[0];
+		bestMove[1] = candidateMoves.get(0)[1];
+		bestMove[2] = candidateMoves.get(0)[2];
+		bestMove[3] = candidateMoves.get(0)[3];
+		 
 		
-		//return bestMove; 
+		return bestMove; 
 		
 	}
 	
 	
-	private static void computeRealtimeFunctions(Piece[][] board, int turnNumber, int[][][][][] stateVector) {
+	private static void computeRealtimeFunctions(Piece[][] board, boolean white, int turnNumber, int[][][][][] stateVector) {
 		
-		
+		PositionFeature.initFeatures(board, white, turnNumber);
 		
 		//RealtimeFunction.computeVsTime(PositionFeature.AllAvailableSquares(false),turnNumber);
 		
+		//WRITE states
+		PositionFeature.writeAll();
 		
-		//TODO: stuff 
-		//PositionFeature.callAll(X, Y, tX, tY, p, color, move, board);
+		//READ states
 		
 		
 	}

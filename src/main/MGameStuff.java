@@ -773,19 +773,22 @@ private static void QueenMoveDist(int X, int Y,int tX,int tY) {
 		
 	}
 	
-	public static int unitValue(String unit) {
+	public static double unitValue(Piece unit) {
 		int v = 0;
-		if(unit.contains("knight") || unit.contains("bishop")) {
+		if(unit.getName().contains("knight") || unit.getName().contains("bishop")) {
 			v = 3;
 		}
-		else if(unit.contains("rook")) {
+		else if(unit.getName().contains("rook")) {
 			v = 5;
 		}
-		else if(unit.contains("queen")) {
+		else if(unit.getName().contains("queen")) {
 			v = 9;
 		}
-		else if(unit.contains("pawn")) {
+		else if(unit.getName().contains("pawn")) {
 			v = 1;
+		}
+		else if(unit.getName().contains("king")) {
+			v = 255;
 		}
 		return v;
 	}

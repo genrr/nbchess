@@ -29,13 +29,13 @@ public class MSystem {
 	 * 
 	 */
 	
-	public static int[] MainFunction(Piece[][] board) {
+	public static int[] MainFunction(Piece[][] board,int turn, boolean white) {
 		int[][][][][] t;
 		int[] r;
 		
 		t = GameStateFunction();
 		
-		r = GameLogic.generate(board,t);
+		r = GameLogic.generate(board,turn,white,t);
 
 		return r;
 	}
