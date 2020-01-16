@@ -20,6 +20,12 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.Random;
 
 public class Engine extends Application {
@@ -45,7 +51,7 @@ public class Engine extends Application {
 	private static boolean BotColor;
 	
 	@Override
-	public void start(Stage window) throws Exception {		
+	public void start(Stage window) throws Exception {
 		initBoard(grid);
 		colorChanger(grid);
 		BorderPane bp = new BorderPane();
@@ -298,7 +304,7 @@ public class Engine extends Application {
 			move = MSystem.MainFunction(board,turn,BotColor);
 			
 			//handle resignation
-			if(move.length == 0) {
+			if(move.length == 1) {
 				if(PlayerColor) {
 					sb.append("White wins by resignation");
 				}
@@ -306,7 +312,7 @@ public class Engine extends Application {
 					sb.append("Black wins by resignation");
 				}
 				gameRunning = false;
-				
+				return;	
 			}
 			
 			makeMove(board[move[0]][move[1]],move[0],move[1],move[2],move[3]);
@@ -476,6 +482,67 @@ public class Engine extends Application {
 	}
 	
 	public static void main(String[] args) {
+		
+		Random r = new Random();
+		String temp = "";
+		String temp1 = ""; String temp2 = "";
+
+
+		FileReader freader = null;
+		try {
+			freader = new FileReader("weights04.txt");
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		
+		BufferedReader br = new BufferedReader(freader);
+		String s;
+		int i = 0;
+
+		
+		try {
+			while((s = br.readLine()) != null) {
+				System.out.println(temp);
+				temp += s;
+				
+				if(r.nextInt(2) == 1) {
+					while(s.charAt(i) != ' ') {
+						i++;
+					}
+				}
+				
+				temp1 = temp.substring(0,i+1);
+				
+				i++;
+				
+				while(s.charAt(i) != ' ') {
+					i++;
+				}
+				
+				temp2 = r.nextDouble() + temp.substring(i);
+				
+				temp = temp1 + " " + temp2;
+				
+				i = 0;
+				
+			
+
+
+			}
+		}
+		catch(Exception e) {
+			
+		}
+		
+		
+		try(FileWriter outFile = new FileWriter("weights05.txt",true);
+				BufferedWriter bWriter = new BufferedWriter(outFile)){
+				bWriter.write(temp);
+			}
+			catch(IOException e){
+				e.printStackTrace();
+			}
+		
 		launch(args);
 	}
 	

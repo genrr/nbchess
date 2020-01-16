@@ -10,6 +10,16 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 
+
+/**
+ * Records relation of feature f with all Values v
+ * 
+ * 
+ * @author Sami
+ *
+ */
+
+
 public class ParameterizedValueFunction {
 	
 	private static double[] featureInput = new double[64];
@@ -19,15 +29,28 @@ public class ParameterizedValueFunction {
 	private static double[] valueChange = new double[63];
 	
 	public static void main(String[] br) {
-		RawFeatureParameterizedValueRelation(1, 2.2364298, 1);
+		compute();
+	}
+	
+	
+	public static void compute(int turn) {
+		RawFeatureParameterizedValueRelation(1, 2, 1);
 		RawFeatureValueRelationReader();
-		Analyse();
+		System.out.println(Analyze());
+	}
+	
+	
+	public static double[] getFeatureStates() {
+		return featureInput;
 	}
 
+	/*
+	 * Forms the relation between feature & value
+	 */
 	
-	
-	public static double RawFeatureParameterizedValueRelation(int featureIndex, double featureValue, int valueIndex) {
+	public static double RawFeatureParameterizedValueRelation(int turn, int featureIndex, int valueIndex) {
 		
+		double featureValue = RealtimeFunction.readFeatureValues(featureIndex, turn);
 		double value = ValueFunction.computeValue(valueIndex,featureValue);
 		
 		try(FileWriter outFile = new FileWriter("ValueFunction-RT-Data-"+ featureIndex +"-"+valueIndex+".txt",true);
@@ -44,11 +67,7 @@ public class ParameterizedValueFunction {
 	}
 	
 	
-	public static double RawFeatureValueRelationReader() {
-		
-		
-
-
+	public static void RawFeatureValueRelationReader() {
 		
 		for (int index = 1; index < 2; index++) {
 			for(int feature = 1; feature < 2; feature++) {
@@ -57,7 +76,6 @@ public class ParameterizedValueFunction {
 				try {
 					freader = new FileReader("ValueFunction-RT-Data-"+ feature +"-"+index+".txt");
 				} catch (FileNotFoundException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 				
@@ -99,40 +117,33 @@ public class ParameterizedValueFunction {
 				
 			}
 		}
-		
-		
-		return 0.0;
+
 		
 	}
 	
-	private static ArrayList<double[]> Analyse() {
+	private static int Analyze() {
 		
 		ArrayList<double[]> changeList = new ArrayList<double[]>();
 		
 		int k = 0;
-		int l = 1;
+
 		
 		int mult1 = 155;
 		int mult2 = 270;
+
 		
-		while(featureInput[k] != 0.0) {
-			while(featureInput[l] != 0.0) {
-				featureChange[k] = featureInput[l] / featureInput[k];
-				l++;
-				}
-			
+		
+		
+		while(featureInput[k] != 0.0 && k+1 < featureInput.length) {
+				featureChange[k] = featureInput[k+1] / featureInput[k];
 			k++;
 		}
 		
 		k = 0;
-		l = 0;
+
 		
-		while(valueOutput[k] != 0.0) {
-			while(valueOutput[l] != 0.0) {
-				valueChange[k] = valueOutput[l] / valueOutput[k];
-				l++;
-				}
-			
+		while(valueOutput[k] != 0.0 && k+1 < featureInput.length) {
+				valueChange[k] = valueOutput[k+1] / valueOutput[k];
 			k++;
 		}
 		
@@ -147,7 +158,7 @@ public class ParameterizedValueFunction {
 
 
 				//output:
-				changeList.add(new double[] {mult1 * -1.0 * valueChange[h] * Math.pow(1.0, 1.2), -1.0 * featureChange[h]});
+				changeList.add(new double[] {mult1 * -1.0 * valueChange[h] * Math.pow(1.1, 1.2), -1.0 * featureChange[h]});
 				
 			}
 			else if(featureChange[h] > 1.0 && valueChange[h] < 1.0) {
@@ -156,7 +167,7 @@ public class ParameterizedValueFunction {
 				
 				
 				//output:
-				changeList.add(new double[] {mult1 * -1.0 * valueChange[h] * Math.pow(1.0, 1.2), 1.0 * featureChange[h]});
+				changeList.add(new double[] {mult1 * -1.0 * valueChange[h] * Math.pow(1.1, 1.2), 1.0 * featureChange[h]});
 			}
 
 			else if(featureChange[h] < 1.0 && valueChange[h] > 1.0) {
@@ -165,7 +176,7 @@ public class ParameterizedValueFunction {
 				
 				
 				//output:
-				changeList.add(new double[] {mult2 * 1.0 * valueChange[h] * Math.pow(1.0, 1.2), -1.0 * featureChange[h]});
+				changeList.add(new double[] {mult2 * 1.0 * valueChange[h] * Math.pow(1.1, 1.2), -1.0 * featureChange[h]});
 			}
 			else if(featureChange[h] > 1.0 && valueChange[h] > 1.0) {
 				//positive ascent on both, value increases
@@ -173,7 +184,7 @@ public class ParameterizedValueFunction {
 				
 				
 				//output:
-				changeList.add(new double[] {mult2 * 1.0 * valueChange[h] * Math.pow(1.0, 1.2), 1.0 * featureChange[h]});
+				changeList.add(new double[] {mult2 * 1.0 * valueChange[h] * Math.pow(1.1, 1.2), 1.0 * featureChange[h]});
 			}
 			
 			h++;
@@ -187,15 +198,39 @@ public class ParameterizedValueFunction {
 		
 		0.76/0.5 0.99/0.76 = 1.52 1.3
 		2.55/0.7 3.66/2.55 = 3.64 1.43
+		
+		270 * 1.0 * 1.52 * 1.12 = 460.12
+		1.0 * 1.3 = 1.3
+		
+		(460.12,1.3), (-1,3.5), (1.12,-5)
+		
+		(1,1), (-1,1), (1,-1), (1,-1), (1,-1)
+		
+		changeSumX =-1 - 1 + 1 - 1 + 1 = -1
+		changeSumY =-1 + 1 - 1 + 1 - 1 = -1
+		
 		*/
 		
+		
+		double changeSumX = 0;
+		double changeSumY = 0;
 
 		for (int i = 0; i < changeList.size(); i++) {
-			System.out.println(changeList.get(i)[0]+" "+changeList.get(i)[1]);
+			changeSumX += Math.signum(changeList.get(i)[0]);
+			changeSumY += Math.signum(changeList.get(i)[1]);
+			System.out.println("change list : ("+changeList.get(i)[0]+", "+changeList.get(i)[1]+")");
 		}
 		
-		
-		return changeList;
+		for (int i = 0; i < featureChange.length; i++) {
+			System.out.print(featureChange[i]+" ");
+		}
+		System.out.println();
+		for (int i = 0; i < valueChange.length; i++) {
+			System.out.print(valueChange[i]+" ");
+		}
+		System.out.println();
+
+		return (int) (Math.abs(changeSumX) + Math.abs(changeSumY));
 	}
 	
 	

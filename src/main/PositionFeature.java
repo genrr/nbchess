@@ -9,6 +9,13 @@ public class PositionFeature {
 	private static int turnNumber;
 	private static boolean whitesTurn;
 	
+	
+	/*
+	 * pass the board, turn number and current turn
+	 * init local variables
+	 * handle frequently needed arrays of pieces
+	 */
+	
 	public static void initFeatures(Piece[][] b, boolean currentTurn, int turnN) {
 		board = b;
 		turnNumber = turnN;
@@ -16,6 +23,12 @@ public class PositionFeature {
 		blackPieces = (Piece[]) MGameStuff.ReturnAllPieces(board, false).toArray();
 		whitePieces = (Piece[]) MGameStuff.ReturnAllPieces(board, true).toArray();
 	}
+	
+	
+	
+	
+	
+	
 	
 	//#1 Relative material amount (pieces on the board)
 	
