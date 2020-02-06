@@ -56,5 +56,16 @@ public class MSystem {
 	public static int[][][][][] GameStateFunction() {
 		
 	}
+
+
+	/*
+	 * Accepts draw if not in winning position
+	 * 
+	 */
+
+	public static boolean DrawDecision(Piece[][] board, int turn, boolean b) {
+		// TODO Auto-generated method stub
+		return false;
+	}
 	
 }

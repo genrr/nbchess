@@ -4,6 +4,8 @@ import java.util.ArrayList;
 
 public class GameLogic {
 	
+	private static boolean drawOffered = false;
+	
 	
 	public static int MAIN_ITERATIONS = 32768;
 	public static int RANDOMNESS_LEVEL = 4350;
@@ -45,6 +47,9 @@ public class GameLogic {
 		if(calculateDiff(candidateMoves) < RESIGN_THRESHOLD) {
 			return new int[] {0};
 		}
+		if(drawOffered) {
+			return new int[] {0,0};
+		}
 
 		
 		//fill arraylist, if generated list has a sum lower than certain %, post resign flag
@@ -56,12 +61,14 @@ public class GameLogic {
 		//sort arraylist according to % (ascending)
 
 		
-		int[] bestMove = new int[4];
+		
+		int[] bestMove = candidateMoves.get(0);
 		bestMove[0] = candidateMoves.get(0)[0];
 		bestMove[1] = candidateMoves.get(0)[1];
 		bestMove[2] = candidateMoves.get(0)[2];
 		bestMove[3] = candidateMoves.get(0)[3];
 		 
+		
 		
 		return bestMove; 
 		
@@ -99,11 +106,16 @@ public class GameLogic {
 	 */
 	
 	private static ArrayList<int[]> run(Piece[][] board, int turnNumber, boolean turnOfWhite) {
+		//StochasticSystem s = new StochasticSystem();
+		//s.start();
+		
+		//StochasticSystem.initSystem(RANDOMNESS_SOURCE, RANDOMNESS_LEVEL, FUNCTION_CHOICE);
+		
 		PositionFeature.initFeatures(board, turnOfWhite, turnNumber);
 		PositionFeature.writeAll();
 		GameSystem.computeDistances();
-		StochasticSystem.prepare(GameSystem.outputData());
-		int[] progressions = StochasticSystem.generate();
+
+		int[] progressions = GameSystem.generate();
 		
 		for(int returnBlockCount = 0; returnBlockCount < MAIN_ITERATIONS; returnBlockCount++) {
 			GameSystem.ReEvaluate(progressions);
@@ -123,6 +135,9 @@ public class GameLogic {
 		PositionFeature.writeImportances(); //feature importances tuned
 		
 
+		if(GameSystem.offerDraw()) {
+			drawOffered = true; 
+		}
 		
 		
 		

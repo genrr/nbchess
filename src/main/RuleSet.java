@@ -18,6 +18,7 @@ public class RuleSet {
 	private static boolean wcastlingq = false;
 	private static boolean bcastlingk = false;
 	private static boolean bcastlingq = false;
+	private static Piece checkingPiece = null;
 
 	/**
 	 * 
@@ -71,8 +72,7 @@ public class RuleSet {
 		}
 		
 		//check if something in the way
-		if(board[startX][startY] != null && !(parsePattern(board[startX][startY],startX,startY,targetX,targetY).equals("error")) && 
-				!CheckInBetween(startX,startY,targetX,targetY,multX,multY))
+		if(board[startX][startY] != null && !CheckInBetween(startX,startY,targetX,targetY,multX,multY))
 		{
 			//handle castlings
 			if(bcastlingk) {
@@ -96,28 +96,34 @@ public class RuleSet {
 				board[7][3] = p;
 			}
 			
-			
-			
-			checkResult = king_in_check(white,board[startX][startY],startX,startY,targetX,targetY);
-			
 			isDraw = checkDraw(board,white);
-
-			//illegal move, check not resolved
-			if (checkResult == 2){
+			
+			
+			//is the king currently in check?
+			checkResult = king_in_check(white,board);
+			Piece[][] testBoard = board;
+			testBoard[targetX][targetY] = board[startX][startY];
+			testBoard[startX][startY] = null;
+			if(checkResult == 1 && king_in_check(white,testBoard) == 1) {
+				
+				//illegal move, check not resolved
 				return 2;
 			}
-			else if(checkResult == 3) {
-				return 3;
-			}
-			else if(checkResult == 4) {
-				return 4;
-			}
-			//check delivered by opposing piece
-			else if(checkResult == 1) {
+			
+
+
+			//check delivered by opposing player
+			if(checkResult == 1) {
 				return 5;
 			}
 			if(isDraw) {
 				return 6;
+			}
+			if(check_mate(true)) {
+				return 3;
+			}
+			else if(check_mate(false)) {
+				return 4;
 			}
 	
 			return 0;
@@ -125,6 +131,9 @@ public class RuleSet {
 		
 		return 1;
 	}
+	
+	
+	/*
 	
 	private static String parsePattern(Piece p,int x, int y,int tX, int tY){
 		System.out.println("tY: "+tY+"y: "+y);
@@ -193,6 +202,7 @@ public class RuleSet {
 		return result;
 
 	}
+	*/
 	
 	private static boolean squareIsUnderAttack(int x, int y, boolean whitesTurn, boolean hostile) {
 		for (int i = 0; i < 8; i++) {
@@ -453,10 +463,10 @@ public class RuleSet {
 	 * @param start Y
 	 * @param target X
 	 * @param target Y
-	 * @return 1 if check, 2 if illegal move because of check, and 0 if no check 
+	 * @return 1 if a players move causes opponent to be in check, 0 if no check 
 	 */
 	
-	private static int king_in_check(boolean whitesTurn, Piece piece, int sx, int sy, int tx, int ty){
+	private static int king_in_check(boolean whitesTurn, Piece[][] board){
 		
 		int index = 0;
 	
@@ -469,30 +479,51 @@ public class RuleSet {
 		while(index < l.size())
 		{
 			if(MGameStuff.distance(l.get(index), l.get(index).getX(), l.get(index).getY(), ownKingX, ownKingY) == 1) {
+				checkingPiece = l.get(index);
 				return 1;
 			}
 			index++;
 		}
-							
-		
-		//TODO: unresolved checks
 		
 		return 0;
 	}
 
 	/**
 	 * 
-	 * @return Returns true if checkmate.
+	 * @return Returns true if checkmate for the current player.
 	 */
 	
 	private static boolean check_mate(boolean turn){
 		
-		//TODO: Checkmating
 		
-		int booleanCounter = 0;
+		
+		int availableSquares = 0;
+		
+		ArrayList<Piece>l = MGameStuff.ReturnAllPieces(board, !turn);
+		ArrayList<int[]> kingsMoves = new ArrayList<int[]>();
 
+
+		for(int i = 0; i<8; i++) {
+			for(int j = 0; j<8; j++) {
+				if(MGameStuff.distance(board[ownKingX][ownKingY], ownKingX, ownKingY, i, j) == 1) {
+					kingsMoves.add(new int[] {i,j});
+				}
+				
+			}
+		}
 		
-		if(booleanCounter == 8) {
+		availableSquares = kingsMoves.size();
+		
+		for (int[] is : kingsMoves) {
+			for(Piece p : l) {
+				if(MGameStuff.distance(p, p.getX(), p.getY(), is[0], is[1]) == 1) {
+					availableSquares--;
+				}
+			}
+		}
+		
+
+		if(availableSquares == 0 && king_in_check(turn,board) == 1 && !lineIsUnderAttack(board, ownKingX, ownKingY, checkingPiece.getX(), checkingPiece.getY(), turn, true, false)) {
 			return true;
 		}
 		
@@ -511,7 +542,15 @@ public class RuleSet {
 
 	private static boolean checkDraw(Piece[][] board, boolean color) {
 		
-		//TODO: Draws
+		//TODO: stalemate
+		//3-fold(optional) 5-fold(absolute), 50-moves without pawn moves/captures(optional draw) 75-moves(absolute draw), 
+		//insufficient material:
+		//king & king
+		//king, bishop & king
+		//king, knight & king
+		//king, bishop & king, bishop (bishops same color)
+		
+		//offered draw
 		
 		
 		return false;

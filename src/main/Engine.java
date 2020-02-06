@@ -26,6 +26,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Random;
 
 public class Engine extends Application {
@@ -33,6 +34,7 @@ public class Engine extends Application {
 	public Piece[] pieces = new Piece[32];
 	public int moveCounter = 0;
 	private int turn = 0;
+	private static boolean drawOfferedByBot = false;
 	private static boolean gameRunning = false;
 
 	private static SimpleBooleanProperty counter  = new SimpleBooleanProperty(false);
@@ -65,6 +67,7 @@ public class Engine extends Application {
 		Button startButton = new Button("Start new game");
 		Button loadButton = new Button("Load a game");
 		Button resignButton = new Button("Resign");
+		Button drawButton = new Button("Offer draw");
 		Button colorButton = new Button("Change color scheme");
 		Button exitButton = new Button("Exit");
 		HBox initButtonContainer = new HBox();
@@ -111,12 +114,14 @@ public class Engine extends Application {
 		Button setparam2 = new Button("f(x)");
 		functionSettingsContainer.getChildren().addAll(setparam1,setparam2);	
 		exitButton.setAlignment(Pos.CENTER_RIGHT);
-		sidebar.getChildren().addAll(exitButton,consolePane,initButtonContainer,turnLabel,functionSettingsContainer,resignButton,colorButton);
+		sidebar.getChildren().addAll(exitButton,consolePane,initButtonContainer,turnLabel,functionSettingsContainer,resignButton,drawButton,
+				colorButton);
 		startButton.setOnAction(e -> StartNewGame(initButtonContainer));
 		loadButton.setOnAction(e -> LoadGame());
 		exitButton.setOnAction(e -> Platform.exit());
 		colorButton.setOnAction(e -> colorChanger(grid));
 		resignButton.setOnAction(e -> EndGame());
+		drawButton.setOnAction(e -> OfferDraw());
 		bp.setRight(sidebar);
 		bp.setLeft(redraw(grid));
 		
@@ -124,7 +129,8 @@ public class Engine extends Application {
 		
 	}
 	
-	
+
+
 
 	//colors
 	//0.28,0.0,0.18,1
@@ -159,12 +165,18 @@ public class Engine extends Application {
 		
 		turn = 1;
 		gameRunning = true;
+		
+		if(!PlayerColor) {
+			RotateBoard();
+		}
 	}
 	
 	
 	private void LoadGame() {
 		
 	}
+	
+	
 	
 	private void EndGame() {
 		if(gameRunning) {
@@ -176,6 +188,38 @@ public class Engine extends Application {
 			}
 			gameRunning = false;
 		}
+	}
+	
+	/*
+	 * Offers draw to Mayflower
+	 * 
+	 * checks if bot offered draw, if yes, end game
+	 * if not, call DrawDecision() and return boolean signifying the accepting/declining of draw
+	 * 
+	 */
+	
+
+	private void OfferDraw() {
+		if(drawOfferedByBot) {
+			gameRunning = false;
+			sb.append("draw accepted");
+		}
+		else {
+			sb.append("Draw offered by player");
+			if(MSystem.DrawDecision(board, turn, counter.get())) {
+				gameRunning = false;
+				sb.append("draw accepted");
+			}
+			else {
+				sb.append("draw declined");
+			}
+		}
+		
+	}
+
+	
+	public static boolean getGameEnded() {
+		return gameRunning;
 	}
 	
 	private GridPane redraw(GridPane grid) {
@@ -258,10 +302,6 @@ public class Engine extends Application {
 	
 	
 	private void gridFn2(Pane p,int sx, int sy, int tx, int ty) {
-		//System.out.println(sx+""+sy);
-		//ystem.out.println(tx+""+ty);
-		//System.out.println("###########"+board[sx][sy]);
-
 		
 		int result = 0;
 		
@@ -313,6 +353,10 @@ public class Engine extends Application {
 				}
 				gameRunning = false;
 				return;	
+			}
+			else if(move.length == 2) {
+				drawOfferedByBot = true;
+				sb.append("Draw offered by mayflower -- press 'Draw' to accept, play move to decline");
 			}
 			
 			makeMove(board[move[0]][move[1]],move[0],move[1],move[2],move[3]);
@@ -433,6 +477,42 @@ public class Engine extends Application {
 	}
 	*/
 	
+	private void RotateBoard() {
+		int temp = 0;
+		ArrayList<Piece> whitePieces = MGameStuff.ReturnAllPieces(board, true);
+		for(Piece p : whitePieces) {
+			if(board[7 - p.getX()][7 - p.getY()] == null) {
+				board[7 - p.getX()][7 - p.getY()] = p;
+			}
+			
+			
+		}
+		
+		
+		board[0][1] = new Piece("knight_b",1,false,0,1);
+		board[0][2] = new Piece("bishop_b",2,false,0,2);
+		board[0][3] = new Piece("queen_b",3,false,0,3);
+		board[0][4] = new Piece("king_b",4,false,0,4);
+		board[0][5] = new Piece("bishop_b",5,false,0,5);
+		board[0][6] = new Piece("knight_b",6,false,0,6);
+		board[0][7] = new Piece("rook_b",7,false,0,7);
+		
+		board[7][0]  = new Piece("rook_w",8,true,7,0);
+		board[7][1]  = new Piece("knight_w",9,true,7,1);
+		board[7][2]  = new Piece("bishop_w",10,true,7,2);
+		board[7][3]  = new Piece("queen_w",11,true,7,3);
+		board[7][4]  = new Piece("king_w",12,true,7,4);
+		board[7][5] = new Piece("bishop_w",13,true,7,5);
+		board[7][6]  = new Piece("knight_w",14,true,7,6);
+		board[7][7]  = new Piece("rook_w",15,true,7,7);
+		
+		for (int i = 0; i < 8; i++) {
+			board[1][i] = new Piece("pawn_b",16+i,false,1,i);
+			board[6][i] = new Piece("pawn_w",24+i,true,6,i);
+		}
+		
+		redraw(grid);
+	}
 	
 	
 	private void initBoard(GridPane grid) {
@@ -483,65 +563,7 @@ public class Engine extends Application {
 	
 	public static void main(String[] args) {
 		
-		Random r = new Random();
-		String temp = "";
-		String temp1 = ""; String temp2 = "";
-
-
-		FileReader freader = null;
-		try {
-			freader = new FileReader("weights04.txt");
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		}
 		
-		BufferedReader br = new BufferedReader(freader);
-		String s;
-		int i = 0;
-
-		
-		try {
-			while((s = br.readLine()) != null) {
-				System.out.println(temp);
-				temp += s;
-				
-				if(r.nextInt(2) == 1) {
-					while(s.charAt(i) != ' ') {
-						i++;
-					}
-				}
-				
-				temp1 = temp.substring(0,i+1);
-				
-				i++;
-				
-				while(s.charAt(i) != ' ') {
-					i++;
-				}
-				
-				temp2 = r.nextDouble() + temp.substring(i);
-				
-				temp = temp1 + " " + temp2;
-				
-				i = 0;
-				
-			
-
-
-			}
-		}
-		catch(Exception e) {
-			
-		}
-		
-		
-		try(FileWriter outFile = new FileWriter("weights05.txt",true);
-				BufferedWriter bWriter = new BufferedWriter(outFile)){
-				bWriter.write(temp);
-			}
-			catch(IOException e){
-				e.printStackTrace();
-			}
 		
 		launch(args);
 	}
@@ -591,5 +613,7 @@ class Piece{
 	public int getY() {
 		return y;
 	}
+	
+
 	
 }

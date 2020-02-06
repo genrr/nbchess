@@ -23,10 +23,16 @@ public class GameSystem {
 		//add noise and get evaluated values for features
 
 		for(int i = 1; i < 27; i++) {
-			evaluatedValues[i] = EvaluationFunction.evaluate(i, featureValues[i] + StochasticSystem.noise());
+			evaluatedValues[i] = EvaluationFunction.evaluate(i, featureValues[i] + StochasticSystem.getNoise(featureValues[i]));
 		}
 
 		relations = Relation.computeRelations(featureValues);
+		
+		
+		//TODO: TuneFeatures() && PruneFeatures() && COmplexify
+		
+		
+		Pipeline.inputData(evaluatedValues,relations);
 		
 		
 	}
@@ -60,6 +66,20 @@ public class GameSystem {
 	}
 
 
+
+
+	public static int[] generate() {
+	
+
+
+		
+		
+		return null;
+	}
+
+	
+	
+	
 	
 	
 
