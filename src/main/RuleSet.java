@@ -19,6 +19,7 @@ public class RuleSet {
 	private static boolean bcastlingk = false;
 	private static boolean bcastlingq = false;
 	private static Piece checkingPiece = null;
+	private static Piece enPassantPiece = null;
 
 	/**
 	 * 
@@ -37,16 +38,19 @@ public class RuleSet {
 	 * 4 if checkmate for black
 	 * 5 if check
 	 * 6 if draw
+	 * 7 if pawn moved two squares
 	 */
 	
 	public static int validate(Piece[][] rgrid, boolean white, int startX, int startY, int targetX, int targetY) {
 		board = rgrid;
-		limit = 0;
 		int checkResult = -1;
 		boolean isDraw;
 		int multX = 0;
 		int multY = 0;
 		ReturnKingAndRookPositions(white);
+		int specialMove;
+	
+		
 
 		if(targetX < startX && targetY < startY){
 			multX = -1;
@@ -70,10 +74,25 @@ public class RuleSet {
 		if(board[startX][startY] != null && ((white && !board[startX][startY].getColor()) || (!white && board[startX][startY].getColor()))) {
 			return 1;
 		}
+
+
 		
-		//check if something in the way
-		if(board[startX][startY] != null && !CheckInBetween(startX,startY,targetX,targetY,multX,multY))
-		{
+		pattern = new int[] {(startX-targetX),(startY-targetY)};
+		
+		specialMove = specialMoves(board[startX][startY],board[startX][startY].getName(),pattern,startX,targetX,targetY);
+		
+		//check if en passant, pawn initial 2-move or castling
+		if(specialMove == 1 || specialMove == -1){
+			if(enPassantPiece != null) {
+				return 1;
+			}
+			else {
+				return 0;
+			}
+		}
+		
+		else if(specialMove == 3) {
+			
 			//handle castlings
 			if(bcastlingk) {
 				Piece p = board[0][7]; 
@@ -96,113 +115,159 @@ public class RuleSet {
 				board[7][3] = p;
 			}
 			
-			isDraw = checkDraw(board,white);
-			
-			
-			//is the king currently in check?
-			checkResult = king_in_check(white,board);
-			Piece[][] testBoard = board;
-			testBoard[targetX][targetY] = board[startX][startY];
-			testBoard[startX][startY] = null;
-			if(checkResult == 1 && king_in_check(white,testBoard) == 1) {
-				
-				//illegal move, check not resolved
-				return 2;
-			}
-			
-
-
-			//check delivered by opposing player
-			if(checkResult == 1) {
-				return 5;
-			}
-			if(isDraw) {
-				return 6;
-			}
-			if(check_mate(true)) {
-				return 3;
-			}
-			else if(check_mate(false)) {
-				return 4;
-			}
-	
+			//quit the method when everything done about the move(s)
 			return 0;
 		}
+		else if(specialMove == 4) {
+			return 1;
+		}
+
 		
-		return 1;
+		
+		//not legal move for given piece or something in the way
+		if(MGameStuff.distance(board, board[startX][startY], startX, startY, targetX, targetY) != 1) {
+			return 1;
+		}	
+		
+		
+		//is drawn position?
+		if(checkDraw(board,white)) {
+			return 6;
+		}
+		
+		
+		//is the king currently in check?
+		checkResult = king_in_check(white,board);
+		Piece[][] testBoard = board;
+		testBoard[targetX][targetY] = board[startX][startY];
+		testBoard[startX][startY] = null;
+		
+		//check not resolved?
+		if(checkResult == 1 && king_in_check(white,testBoard) == 1) {
+			return 2;
+		}
+		//checkmate for white
+		if(check_mate(true)) {
+			return 3;
+		}
+		//checkmate for black
+		else if(check_mate(false)) {
+			return 4;
+		}
+		//check delivered by opposing player
+		else if(checkResult == 0 && king_in_check(white,testBoard) == 1) {
+			return 5;
+		}
+		
+		//en passant opportunity was not used, remove it
+		if(Engine.getEnPassantSquare()[0] != -1) {
+			Engine.setEnPassantSquare(new int[] {-1,-1});
+		}
+
+		return 0;
+		
+		
+	
 	}
 	
 	
 	/*
+	 * Returns integer signifying the "special" move:
+	 *  0 = not a special move 
+	 *  4 = move is not valid castling, pawn initial two-move, or en passant move and thus not legal
+	 *  1 = move is en passant for white
+	 *  2 = white moves pawn two squares
+	 * -1 = move is en passant for black
+	 * -2 = black moves pawn two squares
+	 *  3 = castling for either player
+	 */
 	
-	private static String parsePattern(Piece p,int x, int y,int tX, int tY){
-		System.out.println("tY: "+tY+"y: "+y);
-		
-		
-		pattern = new int[] {(y-tY),(x-tX)};
-		
-		while(limit < 8){
-			//rotate(p);
-			if(verifyPattern(p,p.getName(),pattern,x,board[tX][tY])){
-				return p.getName();
-			}
 
-		limit++;
-		}
-
-		return "error";
-	}
-
-	private static boolean verifyPattern(Piece p, String name, int[] pattern, int y, Piece targetSquareContent){
-		boolean result = false;
+	private static int specialMoves(Piece p, String name, int[] pattern, int y, int tX, int tY){
 		System.out.println(pattern[0]+" "+pattern[1]);
 		
+		//moving two squares at the start + en passant
 		if (name.equals("pawn_w")){
 			System.out.println(pattern[0]+" "+pattern[1] + "y_"+y);
-				//white pawn capture OR white pawn moves one square up OR pawn is situated at (x,6) and can move two squares up
-				if((targetSquareContent != null && !targetSquareContent.getColor() && (Math.abs(pattern[0]) == 1 && pattern[1] == 1)) || 
-						(pattern[0] == 0 && pattern[1] == 1) || 
-						(y == 6 && pattern[0] == 0 && pattern[1] == 2)){
-					result = true;
+				//pawn is situated at (x,6) and can move two squares up, set en passant possibility for next move
+				if(pattern[0] == 0 && pattern[1] == 2){
+					if(y == 6) {
+						Engine.setEnPassantSquare(new int[] {p.getX()+1,p.getY()});
+						return 2;						
+					}
+					else {
+						return 4;
+					}
+
 				}
-			
+				//en passant theoretically possible, check if current pawn is at right X row for en passant
+				//then check if target square is goes forward x-- to same column as the enpassant piece
+				//if en passant square exists, return 1 (legal move)
+				//else, return 4 (not valid move)
+
+				if(p.getX() != Engine.getEnPassantSquare()[0]) {
+					return 0;
+				}
+				else {
+					if(tX == Engine.getEnPassantSquare()[0] && tY == Engine.getEnPassantSquare()[1]) {
+						if(Engine.getEnPassantSquare()[0] != -1) {
+							return 1;
+						}
+						else {
+							return 4;
+						}
+					}
+					
+				}
+
 		}
 		else if (name.equals("pawn_b")){
 			System.out.println(y);
 			System.out.println(pattern[0]+" "+pattern[1]);
-			//black pawn capture OR white pawn moves one square down OR pawn is situated at (x,1) and can move two squares down
-			if((targetSquareContent != null && targetSquareContent.getColor() && (Math.abs(pattern[0]) == 1 && pattern[1] == -1)) ||
-					(pattern[0] == 0 && pattern[1] == -1) || 
-					(y == 1 && pattern[0] == 0 && pattern[1] == -2)){
-				result = true;
+			//pawn is situated at (x,1) and can move two squares down, set en passant possibility for next move
+			if(pattern[0] == 0 && pattern[1] == -2){
+				if(y == 1) {
+					Engine.setEnPassantSquare(new int[] {p.getX()-1,p.getY()});
+					return -2;
+				}
+				else {
+					return 4;
+				}
+				
+			}
+			//en passant theoretically possible, check if current pawn is on right X row for en passant and
+			//if target square is (x--,y--) OR (x--,y++)
+			if(p.getX() == Engine.getEnPassantSquare()[0] && tX == Engine.getEnPassantSquare()[0] && tY == Engine.getEnPassantSquare()[1]) {
+				if(Engine.getEnPassantSquare()[0] != -1) {
+					return -1;
+				}
+				else {
+					return 4;
+				}
+			}
+			else {
+				return 0;
 			}
 			
 		}
-		else if (name.substring(0,6).equals("knight") && (Math.abs(pattern[0]) == 1 && Math.abs(pattern[1]) == 2) || (Math.abs(pattern[0]) == 2 && Math.abs(pattern[1]) == 1)){
-			result = true;
+		
+		//if trying to castle, check if castling allowed
+		else if (name.substring(0,4).equals("king") &&
+				((pattern[0] == 2 || pattern[0] == -2) && pattern[1] == 0)) {
+			if(castlingAllowed(pattern, p.getColor())){
+				return 3;
+			}
+			else {
+				return 4;
+			}
+
 		}
-		else if (name.substring(0,6).equals("bishop") && Math.abs(pattern[0]) == Math.abs(pattern[1])){
-			result = true;
-		}
-		else if (name.substring(0,4).equals("rook") && (pattern[0] == 0 || pattern[1] == 0)) {
-			result = true;
-		}
-		else if (name.substring(0,5).equals("queen") && ((pattern[0] == 0 || pattern[1] == 0) || (Math.abs(pattern[0]) == Math.abs(pattern[1])))){
-			result = true;
-		}
-		else if (name.substring(0,4).equals("king") && 
-				((pattern[0] == 0 && Math.abs(pattern[1]) == 1 || (pattern[1] == 0 && Math.abs(pattern[0]) == 1)) ||
-				(Math.abs(pattern[0]) == 1 && Math.abs(pattern[1]) == 1)) || 
-				((pattern[0] == 2 || pattern[0] == -2) && pattern[1] == 0 && castlingAllowed(pattern, p.getColor()))){
-			result = true;
-		}
-		else{
-			result = false;
-		}
-		return result;
+		
+		//move is not special move
+		return 0;
 
 	}
-	*/
+
 	
 	private static boolean squareIsUnderAttack(int x, int y, boolean whitesTurn, boolean hostile) {
 		for (int i = 0; i < 8; i++) {
@@ -354,46 +419,7 @@ public class RuleSet {
 	*/
 
 
-	//Checks if there is something in between (X,Y) and (tX,tY)
 
-	static boolean CheckInBetween(int X, int Y, int tX, int tY, int multX, int multY){
-		
-		//set local variables:
-		
-		int t1; //local variable to hold temporary X value
-		int t2; //local variable to hold temporary Y value
-		int t = Math.abs(tX-X); //Complete movement, absolute value
-		
-		t1 = X; //set start temp x as X
-		t2 = Y; //set start temp y as Y
-
-		int i = 0; //init iterator i
-		
-
-		//iterate t times
-		while(i < t){
-			//either decrease or increase both temp vars by one, depending on the direction (multX, multY)
-			t1 += multX;
-			t2 += multY;
-			i++;
-
-			//own blocking piece
-			if(i == t && board[X][Y].getColor() == board[tX][tY].getColor()){
-				System.out.println("At "+tX+", "+tY+" presently exists own blocking piece"+board[tX][tY].getName());
-				return true;
-			}
-
-			//another blocking piece
-			if(board[t1][t2] != null ){
-				System.out.println("At "+X+", "+i+" presently exists a "+board[X][i].getColor()+" blocking piece"+board[X][i].getName());
-				return true;
-			}
-			
-		}
-		
-		return false;
-
-	}
 	
 	public static int[] ReturnKingAndRookPositions(boolean color) {
 		
@@ -478,7 +504,8 @@ public class RuleSet {
 		
 		while(index < l.size())
 		{
-			if(MGameStuff.distance(l.get(index), l.get(index).getX(), l.get(index).getY(), ownKingX, ownKingY) == 1) {
+			if(MGameStuff.distance(board, l.get(index), l.get(index).getX(), l.get(index).getY(), ownKingX, ownKingY) == 1) {
+				System.out.println(l.get(index).getName());
 				checkingPiece = l.get(index);
 				return 1;
 			}
@@ -505,7 +532,7 @@ public class RuleSet {
 
 		for(int i = 0; i<8; i++) {
 			for(int j = 0; j<8; j++) {
-				if(MGameStuff.distance(board[ownKingX][ownKingY], ownKingX, ownKingY, i, j) == 1) {
+				if(MGameStuff.distance(board, board[ownKingX][ownKingY], ownKingX, ownKingY, i, j) == 1) {
 					kingsMoves.add(new int[] {i,j});
 				}
 				
@@ -516,7 +543,7 @@ public class RuleSet {
 		
 		for (int[] is : kingsMoves) {
 			for(Piece p : l) {
-				if(MGameStuff.distance(p, p.getX(), p.getY(), is[0], is[1]) == 1) {
+				if(MGameStuff.distance(board, p, p.getX(), p.getY(), is[0], is[1]) == 1) {
 					availableSquares--;
 				}
 			}

@@ -6,7 +6,9 @@ public class MGameStuff {
 	
 	private static int distance = 0;
 	public static int[] distVector = new int[4];
-
+	private static Path[] pathVector = new Path[10];
+	private static Piece[][] board = null;
+	static double[][] evalMatrix = new double[8][8];
 /*
  * i : length of route
 j : first blocking piece at square S
@@ -17,7 +19,7 @@ l : value of pieces along
 
 
 	
-
+/*
 
 	public static int distance(Piece[][] grid, Piece piece, int pieceStartX, int pieceStartY, int dx, int dy) {
 		
@@ -80,7 +82,7 @@ l : value of pieces along
 				
 			}
 		}
-		*/
+
 		if(piece.getName().contains("bishop")) {
 			int[][] mm={{1,0,2,0,2,0,1},
 						{0,1,0,2,0,1,0},
@@ -129,7 +131,7 @@ l : value of pieces along
 				 * 
 				 * 
 				 * 
-				 */
+
 				
 				int tempX = 0;
 				int tempY = 0;
@@ -190,7 +192,7 @@ l : value of pieces along
 				else if(dx < 0 && dy == 0){
 					compareTransform(piece,dx,dy,startX,startY, pieceStartX, pieceStartY,-1,0,-1,0);
 				}
-				*/
+
 			}
 		}
 		else if(piece.getName().contains("pawn_b")) {
@@ -227,7 +229,7 @@ l : value of pieces along
 				else if(dx < 0 && dy < 0){
 					return 0;
 				}
-				*/
+	
 				
 			}
 
@@ -262,7 +264,7 @@ l : value of pieces along
 				else if(dx < 0 && dy < 0){
 					compareTransform(piece,dx,dy,startX,startY, pieceStartX, pieceStartY,0,-dy,-dx,0);
 				}
-				*/
+
 			}
 
 		}
@@ -296,7 +298,7 @@ l : value of pieces along
 				else if(dx < 0 && dy < 0){
 					compareTransform(piece,dx,dy,startX,startY, pieceStartX, pieceStartY,0,-dy,-dx,0);
 				}
-				*/
+	
 			}
 
 	
@@ -345,7 +347,7 @@ l : value of pieces along
 				else if(dx > 0 && dy == 0){
 					compareTransform(piece,dx,dy,startX,startY, pieceStartX, pieceStartY,1,0,1,0);
 				}
-				*/
+
 			}
 
 		}
@@ -433,10 +435,10 @@ l : value of pieces along
 		 * 3 2 2 2 2 2 3
 		 * 3 3 3 3 3 3 3
 		 * 
-		 */
+
 	}
 	
-		/*
+
 	private static void compareTransform(Piece piece, int dx, int dy, int pointX, int pointY, int a1, int a2, int b1, int b2) {
 		int transformDx = dx-Math.abs(a1);
 		int transformDy = dy-Math.abs(a2);
@@ -499,13 +501,16 @@ l : value of pieces along
 	
 
 
-///###
+///###########################################################################################################
 
 ///Distance between pieces using log() vector:
 
 	
 	
-public static int distance(Piece piece, int startX, int startY, int targetX, int targetY) {
+public static int distance(Piece[][] b, Piece piece, int startX, int startY, int targetX, int targetY) {
+	
+	boolean capture = false;
+	board = b;
 	
 	if(piece.getName().contains("knight")) {
 		KnightMoveDist(startX,startY,targetX,targetY);
@@ -517,7 +522,10 @@ public static int distance(Piece piece, int startX, int startY, int targetX, int
 		RookMoveDist(startX,startY,targetX,targetY);
 	}
 	else if(piece.getName().contains("pawn")) {
-		PawnMoveDist(piece,startX,startY,targetX,targetY);
+		if(board[targetX][targetY] != null) {
+			capture = true;
+		}
+		PawnMoveDist(piece,startX,startY,targetX,targetY,capture);
 	}
 	else if(piece.getName().contains("queen")) {
 		QueenMoveDist(startX,startY,targetX,targetY);
@@ -526,6 +534,7 @@ public static int distance(Piece piece, int startX, int startY, int targetX, int
 		KingMoveDist(startX,startY,targetX,targetY);
 	}
 	
+	distanceMatrix(piece.getColor());
 	
 	return distVector[0];
 
@@ -559,30 +568,45 @@ private static void KnightMoveDist(int X, int Y,int tX,int tY) {
 }
 
 
-private static void PawnMoveDist(Piece piece, int X, int Y,int tX,int tY) {
+private static void PawnMoveDist(Piece piece, int X, int Y,int tX,int tY, boolean capture) {
 
 	if(piece.getName().contains("pawn_b")) {
-		int[][] mm = {{0,0,0,0,0,0,0},
-					  {0,0,0,0,0,0,0},
-					  {0,0,1,1,1,0,0},
-					  {0,2,2,2,2,2,0},
-					  {3,3,3,3,3,3,3},
-					  {4,4,4,4,4,4,4},
-					  {5,5,5,5,5,5,5}};
+		int[][] mm={{0,0,0,0,0,0,0,0,0,0,0,0,0},
+				  	{0,0,0,0,0,0,0,0,0,0,0,0,0},
+				  	{0,0,0,0,0,1,1,1,0,0,0,0,0},
+				  	{0,0,0,0,2,2,2,2,2,0,0,0,0},
+				  	{0,0,0,3,3,3,3,3,3,3,0,0,0},
+				  	{0,0,4,4,4,4,4,4,4,4,4,0,0},
+				  	{0,5,5,5,5,5,5,5,5,5,5,5,0},
+				  	{6,6,6,6,6,6,6,6,6,6,6,6,6}};
 		
-		
-		distVector[0] = mm[1+(X-tX)][3+(Y-tY)];
+		if(capture) {
+			mm[2][6] = 0;
+			distVector[0] = mm[1+(X-tX)][6+(Y-tY)];
+		}
+		else {
+			mm[1][6] = 1;
+			distVector[0] = mm[0+(X-tX)][6+(Y-tY)];
+		}
 	}
-	else if(piece.getName().contains("pawn_b")) {
-		int[][] mm = {{5,5,5,5,5,5,5},
-				      {4,4,4,4,4,4,4},
-					  {3,3,3,3,3,3,3},
-					  {0,2,2,2,2,2,0},
-					  {0,0,1,1,1,0,0},
-					  {0,0,0,0,0,0,0},
-					  {0,0,0,0,0,0,0}};
+	else if(piece.getName().contains("pawn_w")) {
+		int[][] mm = {{6,6,6,6,6,6,6,6,6,6,6,6,6},
+					  {0,5,5,5,5,5,5,5,5,5,5,5,0},
+				      {0,0,4,4,4,4,4,4,4,4,4,0,0},
+					  {0,0,0,3,3,3,3,3,3,3,0,0,0},
+					  {0,0,0,0,2,2,2,2,2,0,0,0,0},
+					  {0,0,0,0,0,1,1,1,0,0,0,0,0},
+					  {0,0,0,0,0,0,0,0,0,0,0,0,0},
+					  {0,0,0,0,0,0,0,0,0,0,0,0,0}};
 		
-		distVector[0] = mm[4+(X-tX)][3+(Y-tY)];
+		if(capture) {
+			mm[5][6] = 0;
+			distVector[0] = mm[6-(X-tX)][6+(Y-tY)];
+		}
+		else {
+			mm[6][6] = 1;
+			distVector[0] = mm[7-(X-tX)][6+(Y-tY)];
+		}
 	}
 
 
@@ -618,9 +642,8 @@ private static void RookMoveDist(int X, int Y,int tX,int tY) {
 	int i;
 	int t1 = 0;
 	int t2 = 0;
-	int mult = 0;
-	
-	
+	int multX = 0;
+	int multY = 0;
 	
 	
 	if(tX == X){
@@ -632,54 +655,68 @@ private static void RookMoveDist(int X, int Y,int tX,int tY) {
 		t2 = X;
 	}
 	
-	if(tX < X || tY < Y){
-		mult = -1;
+	if(tX < X && tY < Y){
+		multX = -1;
+		multY = -1;
 	}
-	if(tX > X || tY > Y){
-		mult = 1;
+	if(tX > X && tY < Y){
+		multX = 1;
+		multY = -1;
+	}
+	if(tX < X && tY > Y){
+		multX = -1;
+		multY = 1;
+	}
+	if(tX > X && tY > Y){
+		multX = 1;
+		multY = 1;
 	}
 	
 	
 	
 	if(tX == X){
-		if(!RuleSet.CheckInBetween(X,Y,tX,tY, mult, mult)) {
+		if(!CheckInBetween(X,Y,tX,tY, multX, multY)) {
 			distVector[0] = 1;
 			return;
 		}
 	}	
 	
 	else if(tY == Y){
-		if(!RuleSet.CheckInBetween(X,Y,tX,tY,mult,mult)) {
+		if(!CheckInBetween(X,Y,tX,tY,multX,multY)) {
 			distVector[0] = 1;
 			return;
 		}
 	}	
 
+	int pointIndex = 0;
+	int pathIndex = 0;
+	Path p = new Path(10);
+	p.addNode(pointIndex, new int[] {X,Y});
+	pointIndex++;
+	pathVector[pathIndex] = p;
 	
 	
-	for(i = t2 + mult; i <= Math.abs(t2 - t1); i += mult){
-	
-		//square to turn found?
-		if(i - tY == 0){
-			//check for next lane
-			if(!RuleSet.CheckInBetween(X,i,tX,tY,mult,mult)){
-				distVector[0] = 2;
+	for(i = X; i<7 && i>-1; i += multX){
+		for(int j = Y; j<7 && j>-1; j += multY){
+			if(board[i][j] == null) {
+				int temp = tX;
+				while(CheckInBetween(i, j, temp, j, multX, multY)) {
+					temp += -1*multX;
+				}
+				if(pathBranchingEvaluation(temp,j,board[i][j].getColor()) >= 1) {
+					if(pointIndex <= 10) {
+						p.addNode(pointIndex, new int[] {temp,j});
+					}
+					pointIndex++;
+					
+					
+					while(CheckInBetween(temp, j, temp, j, multX, multY)) {
+						temp += -1*multX;
+					}
+				}
+				
 			}
-		
 		}
-		
-		//square to turn found?
-		if(i - tX == 0){
-			//check for next lane
-			if(!RuleSet.CheckInBetween(i,Y,tX,tY,mult,mult)){
-				distVector[0] = 2;
-			}
-		}
-
-		
-	
-	
-	
 	}
 	
 
@@ -720,7 +757,7 @@ private static void BishopMoveDist(int X, int Y,int tX,int tY) {
 
 
 		//targeted square is reachable by diagonal movement && nothing is blocking the movement
-		if(!RuleSet.CheckInBetween(X,Y,tX,tY,multX,multY)){
+		if(!CheckInBetween(X,Y,tX,tY,multX,multY)){
 			distVector[0] = 1;
 		}
 		else{
@@ -733,7 +770,7 @@ private static void BishopMoveDist(int X, int Y,int tX,int tY) {
 	
 		//targeted square is not reachable by diagonal movement
 		
-		RuleSet.CheckInBetween(X,Y,tX,tY,multX,multY);
+		CheckInBetween(X,Y,tX,tY,multX,multY);
 
 	}
 	
@@ -744,12 +781,61 @@ private static void BishopMoveDist(int X, int Y,int tX,int tY) {
 
 private static void QueenMoveDist(int X, int Y,int tX,int tY) {
 
+	int temp = 0;
+	
 	BishopMoveDist(X,Y,tX,tY);
+	
+	temp = distVector[0];
+	
 	RookMoveDist(X,Y,tX,tY);
+	
+	distVector[0] = Math.min(temp, distVector[0]);
 
-
+	
+	
 }
 
+
+//Checks if there is something in between (X,Y) and (tX,tY)
+
+static boolean CheckInBetween(int X, int Y, int tX, int tY, int multX, int multY){
+	
+	//set local variables:
+	
+	int t1; //local variable to hold temporary X value
+	int t2; //local variable to hold temporary Y value
+	int t = Math.abs(tX-X); //Complete movement, absolute value
+	
+	t1 = X; //set start temp x as X
+	t2 = Y; //set start temp y as Y
+
+	int i = 0; //init iterator i
+	
+
+	//iterate t times
+	while(i < t){
+		//either decrease or increase both temp vars by one, depending on the direction (multX, multY)
+		t1 += multX;
+		t2 += multY;
+		i++;
+
+		//own blocking piece
+		if(board[X][Y] != null && board[tX][tY] != null && i == t && board[X][Y].getColor() == board[tX][tY].getColor()){
+			System.out.println("At "+tX+", "+tY+" presently exists own blocking piece"+board[tX][tY].getName());
+			return true;
+		}
+
+		//another blocking piece
+		if(board[t1][t2] != null ){
+			System.out.println("At "+X+", "+i+" presently exists a blocking piece"+board[X][i].getName());
+			return true;
+		}
+		
+	}
+	
+	return false;
+
+}
 
 	
 	
@@ -766,12 +852,47 @@ private static void QueenMoveDist(int X, int Y,int tX,int tY) {
 	 * [][][]
 	 * 
 	 */
-	public static int DistanceMatrix(String ownership, String action){
-		int[][] distances = new int[MSystem.DIST_CALC_DEPTH][];
+	public static int distanceMatrix(boolean color){
+
+		
+
+		ArrayList<Piece >p1 = ReturnAllPieces(board, !color);
+		ArrayList<Piece >p2 = ReturnAllPieces(board, color);
+		
+		for (int i = 0; i < 8; i++) {
+			for (int j = 0; j < 8; j++) {
+				evalMatrix[i][j] = pathBranchingEvaluation(p1,p2,i,j,color);
+			}
+		}
 		
 		
 		
 	}
+	
+	
+	public static double pathBranchingEvaluation(ArrayList<Piece> p1, ArrayList<Piece> p2, int x, int y, boolean color) {
+		
+
+		
+		for(Piece piece1 : p1) {
+			//enemy piece attacks the turning point (temp,j)
+			if(distance(board, piece1, piece1.getX(), piece1.getY(), x, y) == 1) {
+				
+				for(Piece piece2 : p2) {
+					//our own piece protects the turning point (temp,j)
+					if(distance(board, piece2, piece2.getX(), piece2.getY(), x, y) == 1) {
+						//enemy piece value is less than our own -> bad move
+						//enemy piece value is more or equal to our own -> good
+						return unitValue(piece2)/unitValue(piece1);
+					}
+				}
+				return 0;
+			}
+		}
+		return 1;
+		
+	}
+	
 	
 	public static double unitValue(Piece unit) {
 		int v = 0;
@@ -798,7 +919,7 @@ private static void QueenMoveDist(int X, int Y,int tX,int tY) {
 		
 		for (int i = 0; i < 8; i++) {
 			for (int j = 0; j < 8; j++) {
-				if(board[i][j].getColor() == color) {
+				if(board[i][j] != null && board[i][j].getColor() == color) {
 					//System.out.println(board[i][j].getName()+" at"+i+","+j);
 					returnTable.add(board[i][j]);
 					
@@ -810,3 +931,32 @@ private static void QueenMoveDist(int X, int Y,int tX,int tY) {
 	}
 	
 }
+
+class Path{
+	
+	private int[][] pointList = null;
+	
+	public Path(int cap) {
+		pointList = new int[2][cap];
+	}
+	
+	
+	public void addNode(int i, int[] point) {
+		pointList[i] = point;
+	}
+	
+	public int getPathLength() {
+		int i = 0;
+		while(pointList[i] != null) {
+			i++;
+		}
+		return i;
+	}
+	
+	
+	
+	
+	
+	
+}
+
