@@ -10,7 +10,7 @@ public class Resources {
 	
 	private static int h_interval = 7;
 	private static int h_mod = 512;
-	private static int h_comp_ratio = 2;
+	private static int h_comp_ratio = 5;
 	
 	
 	private static double f(double x) {
@@ -45,9 +45,66 @@ public class Resources {
 		
 	}
 	
-	public static String hash_pos(int[][] posMatrix) {
-		//TODO: convert matrix input into id string, cut string into 8-length pieces, 
-		//hash individual pieces + combine, send hash back to caller
+	public static String calculateHash(Piece[][] pos) {
+		//TODO: convert Piece[][] matrix into 64-length array into id string,
+		//hash 
+		//send hash back to caller
+		
+		int[] t = new int[64];
+		String hash = "";
+		int i = 0;
+		
+		for (Piece[] pieceColumn : pos) {
+			for (Piece piece : pieceColumn) {
+				if(piece == null) {
+					t[i] = 10;
+				}
+				else {
+					t[i] = piece.getId();
+				}
+				i++;
+			}
+		}
+		
+		String input = "";
+		String s1 = "";
+		int prevHash = 0;
+		int s2 = 0;
+		int pos1 = 0;
+		int temp1 = 0;
+		int temp2 = 0;
+		int tempId = 0;
+		
+		for(int k = 0; k < 256; k++) {
+			temp1 = h_0(-15*k*t[k % 64]) % 64;
+			temp2 = h_0(14*k*t[k % 64]) % 64;
+			tempId = t[temp1];
+			t[temp1] = t[temp2];
+			t[temp2] = tempId;
+		}
+		
+		for(int k = 0; k<64; k++) {
+			input += t[k];
+		}
+
+		//input = one long hash string
+		
+		for(int k = 0; k<128; k++) {
+			s1 += input.charAt(k);
+			if((k+1) % h_comp_ratio == 0) {
+				s2 += Integer.parseInt(s1) + prevHash;
+				prevHash = h_0(s2);
+				hash += prevHash;
+				s1 = "";
+			}
+		}
+		
+		
+		
+		return hash;
+		
+		
+		
 	}
 	
 	public static void main(String[] jzn) {

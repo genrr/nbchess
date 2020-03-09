@@ -14,9 +14,25 @@ import java.io.*;
  */
 
 
+/*
+ * GameLogic.generate() -> GameSystem.evaluate() -call to rt thread to pass Piece[][] pos->
+ * 
+ */
 
-public class RealtimeFunction {
+public class RTFunction extends Thread {
 
+	ArrayList<Double> function = new ArrayList<Double>();
+	
+	public void run() {
+		
+		
+		
+	}
+	
+	
+	
+	
+	/*
 	public static void main(String[] args) {
 		storeFeatureValues(2,3.2,1);
 	}
@@ -67,9 +83,9 @@ public class RealtimeFunction {
 				
 	}
 	
-	/*
-	 * These methods store current feature values in file
-	 */
+	
+	 These methods store current feature values in file
+	 
 	
 	public static void storeFeatureValues(int featureIndex, double featureValue, int turn) {
 		double[] point = {featureValue,turn};
@@ -119,6 +135,6 @@ public class RealtimeFunction {
 				e.printStackTrace();
 			}
 
-	}
+	}*/
 	
 }

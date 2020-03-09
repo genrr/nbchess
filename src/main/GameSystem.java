@@ -9,6 +9,7 @@ public class GameSystem {
 	 * gets the array -> evaluates it -> returns evaluation value
 	 */
 	
+
 	public static void computeDistances() {
 		
 		double[] featureValues;
@@ -29,7 +30,7 @@ public class GameSystem {
 		relations = Relation.computeRelations(featureValues);
 		
 		
-		//TODO: TuneFeatures() && PruneFeatures() && COmplexify
+		//TODO: TuneFeatures() && PruneFeatures() && Complexify
 		
 		
 		Pipeline.inputData(evaluatedValues,relations);

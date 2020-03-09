@@ -40,7 +40,12 @@ public class GameLogic {
 	 * 
 	 */
 	
-	public static int[] generate(Piece[][] board, int turnNumber, boolean white, int[][][][][] stateVector) {
+	public static int[] generate(Piece[][] board, int turnNumber, boolean white) {
+		
+		
+		return new int[] {0,1,2,4};
+		
+		/*
 		
 		ArrayList<int[]> candidateMoves = run(board,turnNumber,white);
 		
@@ -50,14 +55,9 @@ public class GameLogic {
 		if(drawOffered) {
 			return new int[] {0,0};
 		}
-
 		
 		//fill arraylist, if generated list has a sum lower than certain %, post resign flag
-		
-		
 		//each move is in vector format of size 5: {sX,sY,tX,tY,%}
-		
-		
 		//sort arraylist according to % (ascending)
 
 		
@@ -71,7 +71,7 @@ public class GameLogic {
 		
 		
 		return bestMove; 
-		
+		*/
 	}
 	
 	
