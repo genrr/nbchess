@@ -50,7 +50,7 @@ public class ParameterizedValueFunction {
 	
 	public static double RawFeatureParameterizedValueRelation(int turn, int featureIndex, int valueIndex) {
 		
-		double featureValue = RealtimeFunction.readFeatureValues(featureIndex, turn);
+		double featureValue = RTFunction.readFeatureValues(featureIndex, turn);
 		double value = ValueFunction.computeValue(valueIndex,featureValue);
 		
 		try(FileWriter outFile = new FileWriter("ValueFunction-RT-Data-"+ featureIndex +"-"+valueIndex+".txt",true);

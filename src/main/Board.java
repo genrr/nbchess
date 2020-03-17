@@ -3,6 +3,7 @@ package main;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -32,7 +33,7 @@ import java.util.Random;
 
 public class Board extends Application {
 	
-	static Engine e;
+	private static Engine e;
 	
 	private static Piece[][] board = new Piece[8][8];
 	public Piece[] pieces = new Piece[32];
@@ -43,7 +44,8 @@ public class Board extends Application {
 	private static boolean gameRunning = false;
 	private static boolean freePlay = true;
 
-	private static SimpleBooleanProperty counter  = new SimpleBooleanProperty(false);
+	private static SimpleIntegerProperty counter  = new SimpleIntegerProperty();
+	private boolean currentTurn;
 	
 	TextArea console = new TextArea();
 	private static int startX;
@@ -100,17 +102,15 @@ public class Board extends Application {
 		turnLabel.setAlignment(Pos.CENTER);
 
 		counter.addListener((observableValue,oldValue,newValue) -> {
-			if(newValue) {
-				turnLabel.setText("Turn: "+String.valueOf(turn)+" White");
+			if((int)newValue % 2 == 0) {
+				turnLabel.setText("Turn: "+String.valueOf(turn)+" : White");
 			}
 			else {
-				turnLabel.setText("Turn: "+String.valueOf(turn)+" Black");
+				turnLabel.setText("Turn: "+String.valueOf(turn)+" : Black");
 			}
 		});
 		
-
-		
-		
+	
 		/*
 		bUnitsLost.addListener((observableValue,oldValue,newValue) -> {
 			wgameInfo.setText(newValue);
@@ -141,7 +141,7 @@ public class Board extends Application {
 		loadButton.setOnAction(e -> LoadGame());
 		resetButton.setOnAction(e -> {
 			moveCounter = 0;
-			counter.setValue(true);
+			counter.setValue(0);
 			turn = 0;
 			((TextArea)(consolePane.getChildren().get(0))).clear();
 			initBoard(grid);
@@ -157,9 +157,9 @@ public class Board extends Application {
 		bp.setRight(sidebar);
 		bp.setLeft(redraw(grid));
 		
-		
-		counter.set(true);
-		turn = 1;
+		currentTurn = true;
+		counter.set(0);
+		turn = 0;
 	}
 	
 
@@ -180,22 +180,21 @@ public class Board extends Application {
 		
 		selectionW.setOnAction(e -> {	PlayerColor = true;
 										BotColor = false;
-										counter.setValue(true);
+										//counter.setValue(true);
 										cont.setVisible(false);
 									});
 		selectionB.setOnAction(e -> {	PlayerColor = false; 
 										BotColor = true; 
-										counter.setValue(true); 
+										//counter.setValue(true); 
 										cont.setVisible(false);
 										
 										isDefaultBoardRotation = false;
 										redraw(grid);
-										System.out.println(board[0][0].getName());
 										
 									});
 		selectionR.setOnAction(e -> {	PlayerColor = generator.nextBoolean(); 
 										BotColor = !PlayerColor; 
-										counter.setValue(true); 
+										//counter.setValue(true); 
 										cont.setVisible(false);
 										
 										if(!PlayerColor) {
@@ -272,9 +271,10 @@ public class Board extends Application {
 	
 	
 	private void setTurn(String piece, int x, int tx, int ty) {
-		moveCounter++;
+		counter.setValue(counter.getValue()+1);
+		currentTurn = !currentTurn;
 
-		if(moveCounter % 2 == 0) {
+		if(counter.getValue() % 2 == 0) {
 			turn++;
 			sb.append(turn+". ");
 		}
@@ -282,10 +282,9 @@ public class Board extends Application {
 			sb.append("\n");
 		}
 		
+		
 		sb.append(pieceSymbol(piece,x,tx,ty)+" ");
-		
-		counter.setValue(!counter.getValue());
-		
+
 		System.out.println("movecounter: "+moveCounter+" counter: "+counter);
 	}
 	
@@ -371,31 +370,26 @@ public class Board extends Application {
 		
 		int[] move = new int[4];
 		
-		if(counter.get() == PlayerColor || freePlay) {
+		if(currentTurn == PlayerColor || freePlay) {
 			System.out.println("moving "+board[sx][sy].getName()+" from "+sx+","+sy+" to "+tx+","+ty);
-			result = RuleSet.validate(board, counter.getValue(), sx, sy, tx, ty);
+			result = RuleSet.validate(board, currentTurn, sx, sy, tx, ty);
 	
-			if(result == 0 || result == 5) {
+
 			
-				System.out.println("moving "+board[sx][sy].getName()+" from "+sx+","+sy+" to "+tx+","+ty);
-				setTurn(board[sx][sy].getName(), sx, tx, ty);
+			if(result == 0 || result == 5) {
 				makeMove(board[sx][sy],sx,sy,tx,ty);
-				redraw(grid);
-				
-				
-				if(result == 5) {
-					sb.append("Check.\n");
-				}
 			}
 			else if(result == 2){
-				sb.append("King in check!\n");
+				sb.append("Unresolved check!\n");
 			}
 			else if(result == 3) {
-				sb.append("White wins by checkmate\n");
+				makeMove(board[sx][sy],sx,sy,tx,ty);
+				sb.append("Black wins by checkmate\n");
 				gameRunning = false;
 			}
 			else if(result == 4) {
-				sb.append("Black wins by checkmate!\n");
+				makeMove(board[sx][sy],sx,sy,tx,ty);
+				sb.append("White wins by checkmate!\n");
 				gameRunning = false;
 			}
 			else if(result == 6) {
@@ -403,24 +397,20 @@ public class Board extends Application {
 				gameRunning = false;
 			}
 			else if(result == 7) {
-				Piece pp = board[0][7]; 
-				board[0][7] = null;
-				board[0][5] = pp;
+				makeMove(board[0][7],0,7,0,5);
+				makeMove(board[0][4],0,4,0,6);
 			}
 			else if(result == 8) {
-				Piece pp = board[0][0]; 
-				board[0][0] = null;
-				board[0][3] = pp;
+				makeMove(board[0][0],0,0,0,3);
+				makeMove(board[0][4],0,4,0,2);
 			}
 			else if(result == 9) {
-				Piece pp = board[7][7]; 
-				board[7][7] = null;
-				board[7][5] = pp;
+				makeMove(board[7][7],7,7,7,5);
+				makeMove(board[7][4],7,4,7,6);
 			}
 			else if(result == 10) {
-				Piece pp = board[7][0]; 
-				board[7][0] = null;
-				board[7][3] = pp;
+				makeMove(board[7][0],7,0,7,3);
+				makeMove(board[7][4],7,4,7,2);
 			}
 			//en passant move was used
 			else if(result == 11) {
@@ -431,13 +421,20 @@ public class Board extends Application {
 				redraw(grid);
 				return;
 			}
-
 			else {
 				sb.append("Illegal move, reason: "+result).append('\n');
 			}
 			
+			if(result != 1 && result != 2) {
+				setTurn(board[tx][ty].getName(), sx, tx, ty);
+				redraw(grid);
+				if(result == 5) {
+					sb.append("+\n");
+				}
+			}
+			
 		}
-		else if(!freePlay && counter.get() == BotColor) {
+		else if(!freePlay && currentTurn == BotColor) {
 			
 			e.setState(board, turn, BotColor);
 			e.interrupt();
@@ -474,6 +471,7 @@ public class Board extends Application {
 
 	}
 
+	
 	public static void makeMove(Piece piece, int x, int y, int tX, int tY){
 		if(board[tX][tY] != null){
 			//scoreboard(board[tX][tY].getName());
@@ -568,25 +566,11 @@ public class Board extends Application {
 			return null;
 		}
 		
-		//System.out.println("x: "+x+"y: "+y+" piece: "+board[x][y].getName());
-		
 		return element.getName();
 
 	}
 	
-	/*
-	private static void scoreboard(String piece) {
-		if(counter.get()) {
-			wUnitsLost.concat(piece+"["+MGameStuff.unitValue(piece)+"]\n");
-		}
-		else {
-			bUnitsLost.concat(piece+"["+MGameStuff.unitValue(piece)+"]\n");
-		}
-		
-	}
-	*/
 
-	
 	private void initBoard(GridPane grid) {
 		//fillBoard();
 		board[0][0] = new Piece("rook_b",11,false,0,0);
@@ -623,6 +607,7 @@ public class Board extends Application {
 
 	}
 	
+	
 	private void colorChanger(GridPane grid) {
 		colorSwitch = (colorSwitch+1) % 3; 
 		if(colorSwitch == 0) {
@@ -640,13 +625,9 @@ public class Board extends Application {
 		redraw(grid);
 	}
 	
+	
 	public static void main(String[] args) {
-
-
-		
 		launch(args);
-		
-		
 	}
 	
 }
@@ -667,13 +648,10 @@ class Piece{
 		this.x = x;
 		this.y = y;
 	}
-	
-	
-	
+
 	public Piece(String name) {
 		this.name = name;
 	}
-	
 	
 	public boolean getColor() {
 		return color;
@@ -696,7 +674,6 @@ class Piece{
 	}
 	
 	public void setCoords(int x, int y) {
-
 		this.x = x;
 		this.y = y;
 	}

@@ -34,7 +34,7 @@ public class RuleSet {
 	 * @return 
 	 * 
 	 * 0 legal move
-	 * 1 if not legal for a given piece or own piece in the way, or trying to move other players piece
+	 * 1 if not legal for a given piece or own piece in the way, or trying to move other players piece, castling conditions not met
 	 * 2 if king in check 
 	 * 3 if checkmate for white
 	 * 4 if checkmate for black
@@ -54,6 +54,7 @@ public class RuleSet {
 		int multX = 0;
 		int multY = 0;
 		ReturnKingAndRookPositions();
+		MGameUtility.UpdateCoords(board);
 		int specialMove;
 	
 		
@@ -90,10 +91,8 @@ public class RuleSet {
 		//check if en passant, pawn initial 2-move or castling
 		if(specialMove == 1 || specialMove == -1){
 			Board.setEnPassantSquare(new int[] {-1,-1});
-			return 11;
-			
-		}
-		
+			return 11;		
+		}	
 		else if(specialMove == 3) {
 			if(bcastlingk) {
 				return 7;
@@ -115,7 +114,7 @@ public class RuleSet {
 		
 		
 		//not legal move for given piece or something in the way
-		if(MGameStuff.distance(board, board[startX][startY], startX, startY, targetX, targetY,false) != 1) {
+		if(MGameUtility.distance(board, board[startX][startY], startX, startY, targetX, targetY,false) != 1) {
 			return 1;
 		}	
 		
@@ -125,9 +124,9 @@ public class RuleSet {
 			return 6;
 		}
 
-		//is the king currently in check?
-		checkResult = king_in_check(white,board);
-		Piece[][] testBoard = MGameStuff.cloneArray(board);
+		//test board to test the effects of the new move
+
+		Piece[][] testBoard = MGameUtility.cloneArray(board);
 		testBoard[startX][startY].setCoords(targetX,targetY);
 		if(testBoard[targetX][targetY] != null) {
 			testBoard[targetX][targetY].setCoords(-1,-1);
@@ -137,16 +136,16 @@ public class RuleSet {
 		testBoard[startX][startY] = null;
 
 		
-		//black checkmates
-		if(check_mate(white) && !white) {
+		//black checkmates white
+		if(check_mate(!white) && !white) {
 			return 3;
 		}
-		//white checkmates
-		else if(check_mate(white) && white) {
+		//white checkmates black
+		else if(check_mate(!white) && white) {
 			return 4;
 		}
 		//check not resolved or new move causes check?
-		else if((checkResult && king_in_check(white,testBoard)) || !checkResult && king_in_check(white,testBoard)) {
+		else if(king_in_check(white,testBoard)) {
 			return 2;
 		}
 		//opponents king is in check after the move
@@ -248,7 +247,8 @@ public class RuleSet {
 		
 		//if trying to castle, check if castling allowed
 		else if (name.substring(0,4).equals("king") &&
-				((pattern[0] == 2 || pattern[0] == -2) && pattern[1] == 0)) {
+				((pattern[1] == 2 || pattern[1] == -2) && pattern[0] == 0)) {
+			System.out.println("??");
 			if(castlingAllowed(pattern, p.getColor())){
 				return 3;
 			}
@@ -263,24 +263,6 @@ public class RuleSet {
 
 	}
 
-	
-	private static boolean squareIsUnderAttack(int x, int y, boolean whitesTurn, boolean hostile) {
-		for (int i = 0; i < 8; i++) {
-			for (int j = 0; j < 8; j++) {
-				if(hostile) {
-					if(board[i][j] != null && (board[i][j].getColor() != whitesTurn) && MGameStuff.distance(board,board[i][j], j, i, y-i, x-j,false) == 1){
-						return true;
-					}	
-				}
-				else {
-					if(board[i][j] != null && (board[i][j].getColor() == whitesTurn) && MGameStuff.distance(board,board[i][j], j, i, y-i, x-j,false) == 1){
-						return true;
-					}	
-				}
-			}
-		}
-		return false;
-	}
 
 	private static boolean lineIsUnderAttack(Piece[][] grid, int sx, int sy, int tx, int ty, boolean whitesTurn, boolean inclusive, boolean hostile) {
 		int tempX = sx;
@@ -300,7 +282,8 @@ public class RuleSet {
 			amount = Math.abs(sy-ty);
 		}
 		
-		for(int z = 0; z <= amount; z++ ) {
+		//loop through the "line" from (sx,sy) -> (tx,ty) with (tempX,tempY) being the points in between
+		for(int z = 0; z <= amount-1; z++ ) {
 			
 			if(tx > sx) {
 				tempX++;
@@ -315,41 +298,33 @@ public class RuleSet {
 				tempY--;
 			}
 			
+			System.out.println(hostile ? !whitesTurn : whitesTurn);
 			
-			for (int i = 0; i < 8; i++) {
-				for (int j = 0; j < 8; j++) {
-					if(hostile) {
-						if(grid[i][j] != null && (grid[i][j].getColor() != whitesTurn) && MGameStuff.distance(grid,grid[i][j], i, j, tempX-i, tempY-j,false) == 1){
-							if(!inclusive) {
-								return true;
-							}
-							else if(counter == amount){
-								return true;
-							}
-							counter++;
-						}	
+			ArrayList<Piece> allPieces = MGameUtility.ReturnAllPieces(grid, hostile ? !whitesTurn : whitesTurn);
+			
+			for(Piece p : allPieces) {
+				System.out.println("tempX: "+ tempX + " tempY: "+ tempY);
+				if(MGameUtility.distance(grid, p, p.getX(), p.getY(), tempX, tempY, false) == 1) {
+					if(!inclusive && counter == amount-1) {
+						return true;
 					}
-					else {
-						
-						if(grid[i][j] != null && (grid[i][j].getColor() == whitesTurn) && MGameStuff.distance(grid,grid[i][j], i, j, tempX-i, tempY-j,false) == 1){
-							System.out.println(grid[i][j].getName());
-							if(!inclusive) {
-								return true;
-							}
-							else if(counter == amount){
-								return true;
-							}
-							counter++;
-						}	
+					else if(counter == amount) {
+						return true;
 					}
+					
 				}
-			}		
+				counter++;
+			}
+			
+			
+			
 		}
-		return false;
+	return false;
 	}
 
 	private static boolean castlingAllowed(int[] pattern, boolean whitesTurn) {
-		if(pattern[0] == -2) {
+		System.out.println("castling?");
+		if(pattern[1] == -2) {
 			if(whitesTurn) {
 				if(board[7][5] == null && board[7][6] == null) {
 					if(rooksMoved[3] == 0 && !wKingMoved && !lineIsUnderAttack(board,4,7,7,7,whitesTurn,false,true)) {
@@ -367,7 +342,7 @@ public class RuleSet {
 				}
 			}
 		}
-		else if(pattern[0] == 2) {
+		else if(pattern[1] == 2) {
 			if(whitesTurn ) {
 				if(board[7][1] == null && board[7][2] == null && board[7][3] == null) {
 					if(rooksMoved[2] == 0 && !wKingMoved && !lineIsUnderAttack(board,0,7,3,7,whitesTurn,false,true)) {
@@ -488,7 +463,7 @@ public class RuleSet {
 		
 		int index = 0;
 	
-		ArrayList<Piece> l = MGameStuff.ReturnAllPieces(board, !white);
+		ArrayList<Piece> l = MGameUtility.ReturnAllPieces(board, !white);
 		
 		//iterate the l array for enemy pieces which have distance of ONE to our own King!
 		//return 1 if found
@@ -506,8 +481,8 @@ public class RuleSet {
 		
 		while(index < l.size())
 		{
-			System.out.println(MGameStuff.distance(board, l.get(index), l.get(index).getX(), l.get(index).getY(), kingX, kingY, false));
-			if(MGameStuff.distance(board, l.get(index), l.get(index).getX(), l.get(index).getY(), kingX, kingY, false) == 1) {
+			System.out.println(MGameUtility.distance(board, l.get(index), l.get(index).getX(), l.get(index).getY(), kingX, kingY, false));
+			if(MGameUtility.distance(board, l.get(index), l.get(index).getX(), l.get(index).getY(), kingX, kingY, false) == 1) {
 				System.out.println("check: "+l.get(index).getName()+"in "+l.get(index).getX()+","+l.get(index).getY());
 				checkingPiece = l.get(index);
 				return true;
@@ -528,6 +503,7 @@ public class RuleSet {
 	
 	private static boolean check_mate(boolean turn){
 		
+		System.out.println("checkmate testing started at turn of "+turn);
 		
 		int kingX,kingY;
 		
@@ -539,18 +515,18 @@ public class RuleSet {
 			kingX = bKingX;
 			kingY = bKingY;
 		}
-		//if this variable reaches 0 after initializing it with kingsMoves size, there is no legal moves for the king
+		//if this variable reaches 0 after initializing it with kingsMoves size, there are no legal moves for the king
 		int availableSquares = 0;
 		
 		//return opposing players pieces
-		ArrayList<Piece> l = MGameStuff.ReturnAllPieces(board, !turn);
+		ArrayList<Piece> l = MGameUtility.ReturnAllPieces(board, !turn);
 		//store kings possible moves in here
 		ArrayList<int[]> kingsMoves = new ArrayList<int[]>();
 
 		//find kings moves
 		for(int i = 0; i<8; i++) {
 			for(int j = 0; j<8; j++) {
-				if(MGameStuff.distance(board, board[kingX][kingY], kingX, kingY, i, j,false) == 1) {
+				if(MGameUtility.distance(board, board[kingX][kingY], kingX, kingY, i, j,false) == 1) {
 					
 					kingsMoves.add(new int[] {i,j});
 					System.out.println("square ("+i+","+j+") available for "+turn);
@@ -570,7 +546,7 @@ public class RuleSet {
 		for (int[] is : kingsMoves) {
 			for(Piece p : l) {
 				System.out.println("testing: "+p.getName()+" at ("+p.getX()+","+p.getY()+") for distance 1 to kings square ("+is[0]+","+is[1]+")");
-				if(MGameStuff.distance(board, p, p.getX(), p.getY(), is[0], is[1],false) == 1) {
+				if(MGameUtility.distance(board, p, p.getX(), p.getY(), is[0], is[1],false) == 1) {
 					
 					availableSquares--;
 				}
@@ -583,7 +559,7 @@ public class RuleSet {
 		 * line through the king and the checking piece is not under attack = check cannot be blocked
 		 * -> return true for checkmate
 		 */
-		if(availableSquares == 0 && king_in_check(turn,board) && !lineIsUnderAttack(board, kingX,kingY, checkingPiece.getX(), checkingPiece.getY(), turn, true, false)) {
+		if(availableSquares == 0 && king_in_check(turn,board) && !lineIsUnderAttack(board, kingX, kingY, checkingPiece.getX(), checkingPiece.getY(), turn, true, false)) {
 			return true;
 		}
 		
