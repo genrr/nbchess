@@ -21,10 +21,15 @@ public static int distance(Piece[][] b, Piece piece, int startX, int startY, int
 	
 	System.out.println("testing distance between: "+piece.getName()+" at ("+piece.getX()+","+piece.getY()+") -> ("+targetX+","+targetY+")");
 	
+	//sX == tX && sY == tY
+	if(startX == targetX && startY == targetY) {
+		return 1;
+	}
 	//own piece in target square
 	if(b[targetX][targetY] != null && b[targetX][targetY].getColor() == piece.getColor()){
 		return 0;
 	}
+
 	
 	if(piece.getName().contains("knight")) {
 		dist = KnightMoveDist(startX,startY,targetX,targetY);
@@ -45,6 +50,7 @@ public static int distance(Piece[][] b, Piece piece, int startX, int startY, int
 	}
 	else if(piece.getName().contains("queen")) {
 		dist = QueenMoveDist(startX,startY,targetX,targetY);
+		System.out.println("queen distance:"+dist);
 	}
 	else if(piece.getName().contains("king")) {
 		dist = KingMoveDist(startX,startY,targetX,targetY);
@@ -53,6 +59,8 @@ public static int distance(Piece[][] b, Piece piece, int startX, int startY, int
 	if(eval) {
 		distanceMatrix(piece.getColor());
 	}
+	
+	System.out.println("dist: "+dist);
 	
 	return dist;
 
@@ -113,6 +121,9 @@ private static int PawnMoveDist(Piece piece, int X, int Y,int tX,int tY, boolean
 			return mm[1+(tX-X)][7+(tY-Y)];
 		}
 		else {
+			if(X != 1 && mm[0+(tX-X)][7+(tY-Y)] != 0) {
+				mm[0+(tX-X)][7+(tY-Y)]++;
+			}
 			mm[1][7] = 1;
 			return mm[0+(tX-X)][7+(tY-Y)];
 		}
@@ -139,8 +150,13 @@ private static int PawnMoveDist(Piece piece, int X, int Y,int tX,int tY, boolean
 			return mm[6+(tX-X)][7+(tY-Y)];
 		}
 		else {
-			mm[6][7] = 1;
 			System.out.println("7+(tX-X) = "+(7+(tX-X))+" tX: "+tX+" X: "+X);
+			System.out.println(mm[7+(tX-X)][7+(tY-Y)]);
+			
+			if(X != 6 && mm[7+(tX-X)][7+(tY-Y)] != 0) {
+				mm[7+(tX-X)][7+(tY-Y)]++;
+			}
+			mm[6][7] = 1;
 			return mm[7+(tX-X)][7+(tY-Y)];
 		}
 	}
@@ -490,15 +506,19 @@ static boolean CheckInBetween(int X, int Y, int tX, int tY){
 		t2 += multY;
 		i++;
 		
-		//own blocking piece along the line
+		System.out.println("("+t1+","+t2+")");
+		
 		if(board[X][Y] != null && board[t1][t2] != null){
+			//own blocking piece along the line
 			if(board[X][Y].getColor() == board[t1][t2].getColor()) {
 				System.out.println("At "+t1+", "+t2+" exists own blocking piece "+board[t1][t2].getName());
 				return true;
 			}
-			else if(t1 != tX && t2 != tY){
+			//enemy piece blocking the way
+			else if(t1 != tX || t2 != tY){
 				return true;
 			}
+			//enemy piece at the end
 			else {
 				return false;
 			}
