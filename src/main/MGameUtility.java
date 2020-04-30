@@ -15,20 +15,17 @@ public class MGameUtility {
 	
 public static int distance(Piece[][] b, Piece piece, int startX, int startY, int targetX, int targetY,boolean eval) {
 	
-	boolean capture = false;
+	boolean onceAndDiagonal = false;
 	board = b;
 	int dist = 0;
 	
-	System.out.println("testing distance between: "+piece.getName()+" at ("+piece.getX()+","+piece.getY()+") -> ("+targetX+","+targetY+")");
+	//System.out.println("testing distance between: "+piece.getName()+" at ("+piece.getX()+","+piece.getY()+") -> ("+targetX+","+targetY+")");
 	
-	//sX == tX && sY == tY
+	//sX == tX && sY == tY, same square
 	if(startX == targetX && startY == targetY) {
 		return 1;
 	}
-	//own piece in target square
-	if(b[targetX][targetY] != null && b[targetX][targetY].getColor() == piece.getColor()){
-		return 0;
-	}
+	
 
 	
 	if(piece.getName().contains("knight")) {
@@ -41,16 +38,30 @@ public static int distance(Piece[][] b, Piece piece, int startX, int startY, int
 		dist = RookMoveDist(startX,startY,targetX,targetY);
 	}
 	else if(piece.getName().contains("pawn")) {
-		System.out.println("tX:"+targetX+" tY:"+targetY+" piece x,y: "+piece.getX()+","+piece.getY());
-		if(board[targetX][targetY] != null && Math.abs(targetX-startX) == 1 && Math.abs(targetY-startY) == 1) {
-			capture = true;
+		if(board[targetX][targetY] != null) {
+			
+			int[] p = RuleSet.nettyPater(startX, startY, targetX, targetY);
+			
+			if((piece.getColor() && ((p[0] == -1 && p[1] == 1) || (p[0] == -1 && p[1] == -1))) ||
+			  (!piece.getColor() && ((p[0] == 1 && p[1] == -1) || (p[0] == 1 && p[1] == 1)))) {
+				onceAndDiagonal = true;
+			}
+			
+			
 		}
 		
-		dist = PawnMoveDist(piece,startX,startY,targetX,targetY,capture);
+		dist = PawnMoveDist(piece,startX,startY,targetX,targetY,onceAndDiagonal);
+		
+		//if distance is one && target square is not empty && not diagonal -> pawn cannot move to target, return 0
+		if(dist == 1 && board[targetX][targetY] != null && targetY == startY) {
+
+			return 0;
+
+		}
+		
 	}
 	else if(piece.getName().contains("queen")) {
 		dist = QueenMoveDist(startX,startY,targetX,targetY);
-		System.out.println("queen distance:"+dist);
 	}
 	else if(piece.getName().contains("king")) {
 		dist = KingMoveDist(startX,startY,targetX,targetY);
@@ -60,7 +71,13 @@ public static int distance(Piece[][] b, Piece piece, int startX, int startY, int
 		distanceMatrix(piece.getColor());
 	}
 	
-	System.out.println("dist: "+dist);
+	//System.out.println("dist: "+dist);
+	
+	//defending own piece, return -1 (only 1-distance moves)
+	if(dist == 1 && b[targetX][targetY] != null && b[targetX][targetY].getColor() == piece.getColor()){
+		return -1;
+	}
+	
 	
 	return dist;
 
@@ -117,6 +134,7 @@ private static int PawnMoveDist(Piece piece, int X, int Y,int tX,int tY, boolean
 				  	{0,0,5,5,5,5,5,5,5,5,5,5,5,0,0},
 				  	{0,6,6,6,6,6,6,6,6,6,6,6,6,6,0}};
 		
+
 		if(capture) {
 			return mm[1+(tX-X)][7+(tY-Y)];
 		}
@@ -125,6 +143,7 @@ private static int PawnMoveDist(Piece piece, int X, int Y,int tX,int tY, boolean
 				mm[0+(tX-X)][7+(tY-Y)]++;
 			}
 			mm[1][7] = 1;
+			
 			return mm[0+(tX-X)][7+(tY-Y)];
 		}
 	}
@@ -149,10 +168,7 @@ private static int PawnMoveDist(Piece piece, int X, int Y,int tX,int tY, boolean
 		if(capture) {
 			return mm[6+(tX-X)][7+(tY-Y)];
 		}
-		else {
-			System.out.println("7+(tX-X) = "+(7+(tX-X))+" tX: "+tX+" X: "+X);
-			System.out.println(mm[7+(tX-X)][7+(tY-Y)]);
-			
+		else {		
 			if(X != 6 && mm[7+(tX-X)][7+(tY-Y)] != 0) {
 				mm[7+(tX-X)][7+(tY-Y)]++;
 			}
@@ -174,7 +190,7 @@ private static int KingMoveDist(int X, int Y,int tX,int tY) {
 	int b = Math.abs(tX-X);
 	
 	/*
-	 * if both diffs in range 0,1, return 1java
+	 * if both diffs in range 0,1, return 1
 	 * else, return 0
 	 */
 	if(a <= 1 && b <= 1) {
@@ -341,15 +357,19 @@ private static int BishopMoveDist(int X, int Y,int tX,int tY) {
 			return 0;
 		}
 		
-		int start = 0;
+		
+		System.out.println("before "+i+" "+j);
+
+		
 		while(i < 8 && j < 8 && i > -1 && j > -1 && Math.abs(tX-i) != Math.abs(tY-j)) {
-			if((i == 7 || j == 7 || i == 0 || j == 7) && start != 0) {
+			//we're about to go over the board
+			if(i+multX == 8 || j+multY == 8 || i+multX == -1 || j+multY == -1) {
 				break;
 			}
-			i += multX; 
+			i += multX;
 			j += multY;
-			start++;
 		}
+		
 		
 		t1 = i - X;
 		t2 = j - Y;
@@ -357,6 +377,7 @@ private static int BishopMoveDist(int X, int Y,int tX,int tY) {
 		d1 = tX-X + -1*t1;
 		d2 = tY-Y + -1*t2;
 		
+		System.out.println("after "+i+" "+j);
 		
 		if((!CheckInBetween(X,Y,i,j) && !CheckInBetween(i,j,tX,tY)) ||
 		   X+d1 < 8 && X+d1 > -1 && Y+d2 < 8 && Y+d2 > -1 && 
@@ -417,8 +438,11 @@ private static int QueenMoveDist(int X, int Y,int tX,int tY) {
 		j = Y;
 		
 		while(i < 8 && j < 8 && i > -1 && j > -1 && (Math.abs(tX-i) != Math.abs(tY-j) && i != tX && j != tY)) {
-				i += multX;
-				j += multY;
+			if(i+multX == 8 || j+multY == 8 || i+multX == -1 || j+multY == -1) {
+				break;
+			}
+			i += multX;
+			j += multY;
 		}
 		
 		if(!CheckInBetween(X,Y,i,j) && !CheckInBetween(i,j,tX,tY)) {
@@ -448,6 +472,10 @@ private static int QueenMoveDist(int X, int Y,int tX,int tY) {
 			j = Y;
 			
 			while(i < 8 && j < 8 && i > -1 && j > -1 && (Math.abs(tX-i) != Math.abs(tY-j) && i != tX && j != tY)){
+				if(i+multX == 8 || j+multY == 8 || i+multX == -1 || j+multY == -1) {
+					break;
+				}
+				
 				if(n == 2) {
 					i += multX;
 				}
@@ -480,7 +508,9 @@ private static int QueenMoveDist(int X, int Y,int tX,int tY) {
 //Checks if there is a piece in between (X,Y) and (tX,tY), (tX,tY) has to be reachable in one move 
 //by the given piece from (X,Y)
 
-static boolean CheckInBetween(int X, int Y, int tX, int tY){
+public static boolean CheckInBetween(int X, int Y, int tX, int tY){
+	
+	System.out.println("X:"+X+" Y:"+Y+" tX:"+tX+" tY:"+tY);
 	
 	//set local variables:
 	
@@ -496,8 +526,6 @@ static boolean CheckInBetween(int X, int Y, int tX, int tY){
 	int multX = (int) Math.signum(tX-X);
 	int multY = (int) Math.signum(tY-Y);
 	
-	//System.out.println("piece: "+board[X][Y].getName());
-	System.out.println("checking line from ("+X+","+Y+") to ("+tX+","+tY+")");
 	
 	//iterate t times
 	while(i < t){
@@ -506,12 +534,15 @@ static boolean CheckInBetween(int X, int Y, int tX, int tY){
 		t2 += multY;
 		i++;
 		
-		System.out.println("("+t1+","+t2+")");
 		
 		if(board[X][Y] != null && board[t1][t2] != null){
+			
+			if(board[t1][t2].getColor() != board[X][Y].getColor() && board[t1][t2].getName().contains("king")) {
+				continue;
+			}
+			
 			//own blocking piece along the line
 			if(board[X][Y].getColor() == board[t1][t2].getColor()) {
-				System.out.println("At "+t1+", "+t2+" exists own blocking piece "+board[t1][t2].getName());
 				return true;
 			}
 			//enemy piece blocking the way
@@ -601,6 +632,16 @@ static boolean CheckInBetween(int X, int Y, int tX, int tY){
 		return v;
 	}
 	
+	public static Piece GetByGid(ArrayList<Piece> list, int gid) {
+		for(Piece p : list) {
+			if(p.getGid() == gid) {
+				return p;
+			}
+		}
+		
+		return new Piece("temp", -1, -1, false, -1, -1); //not found
+	}
+	
 	public static ArrayList<Piece> ReturnAllPieces(Piece[][] board, boolean color) {
 		ArrayList<Piece> returnTable = new ArrayList<Piece>();
 		
@@ -636,6 +677,17 @@ static boolean CheckInBetween(int X, int Y, int tX, int tY){
 				}
 			}
 		}
+	}
+
+
+	public static ArrayList<Piece> cloneArrayList(ArrayList<Piece> pieces) {
+		ArrayList<Piece> p = new ArrayList<Piece>(pieces.size());
+		
+		for(int i = 0; i<pieces.size(); i++) {
+			p.add(i,pieces.get(i));
+			
+		}
+		return p;
 	}
 	
 }

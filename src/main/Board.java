@@ -2,7 +2,6 @@ package main;
 
 import javafx.application.Application;
 import javafx.application.Platform;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -20,26 +19,21 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
-
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 
 public class Board extends Application {
 	
-	private static Engine e;
+	private static Engine mayflower;
 	
 	private static Piece[][] board = new Piece[8][8];
+	private static ArrayList<String> posList = new ArrayList<String>();
 	public Piece[] pieces = new Piece[32];
 	public int moveCounter = 0;
-	private int turn = 0;
+	private static int turn = 0;
 	private int maxID = 42;
+	private static int turnsWoPMOrC = 0; 
 	private static boolean drawOfferedByBot = false;
 	private static int[] enPassantSquares = new int[] {-1,-1};
 	private static boolean gameRunning = false;
@@ -68,7 +62,7 @@ public class Board extends Application {
 	
 	@Override
 	public void start(Stage window) throws Exception {
-		initBoard(grid);
+		System.out.println(Thread.currentThread());
 		colorChanger(grid);
 		BorderPane bp = new BorderPane();
 		Scene scene = new Scene(bp,1080,920);
@@ -109,19 +103,9 @@ public class Board extends Application {
 			else {
 				turnLabel.setText("Turn: "+String.valueOf(turn)+" : Black");
 			}
+			posList.add(Resources.calculateHash(board));
+			System.out.println(Resources.calculateHash(board));
 		});
-		
-	
-		/*
-		bUnitsLost.addListener((observableValue,oldValue,newValue) -> {
-			wgameInfo.setText(newValue);
-		});
-		
-		
-		wUnitsLost.addListener((observableValue,oldValue,newValue) -> {
-			bgameInfo.setText(newValue);
-		});
-		*/
 		
 		
 		//add. controls for the ndf algorithm
@@ -141,6 +125,13 @@ public class Board extends Application {
 		startButton.setOnAction(e -> StartNewGame(initButtonContainer));
 		loadButton.setOnAction(e -> LoadGame());
 		resetButton.setOnAction(e -> {
+			initButtonContainer.getChildren().clear();
+			initButtonContainer.getChildren().addAll(startButton,loadButton);
+			initButtonContainer.setVisible(true);
+			gameRunning = true;
+			setWOPMORC(0);
+			posList.clear();
+			freePlay = true;
 			moveCounter = 0;
 			counter.set(0);
 			turn = 0;
@@ -149,7 +140,7 @@ public class Board extends Application {
 			sb = new StringBuilder();
 			initBoard(grid);
 		});
-		exitButton.setOnAction(e -> Platform.exit());
+		exitButton.setOnAction(e -> {gameRunning = false; Platform.exit();});
 		colorButton.setOnAction(e -> colorChanger(grid));
 		resignButton.setOnAction(e -> EndGame());
 		rotateButton.setOnAction(e -> {
@@ -158,11 +149,14 @@ public class Board extends Application {
 		});
 		drawButton.setOnAction(e -> OfferDraw());
 		bp.setRight(sidebar);
-		bp.setLeft(redraw(grid));
+		bp.setLeft(initBoard(grid));
 		
+		gameRunning = true;
 		currentTurn = true;
 		counter.set(0);
 		turn = 0;
+		
+		
 	}
 	
 
@@ -210,8 +204,8 @@ public class Board extends Application {
 		cont.getChildren().clear();
 		cont.getChildren().addAll(selectionW,selectionB,selectionR);
 		
-		e = new Engine();
-		e.start();
+		mayflower = new Engine();
+		mayflower.start();
 		
 		currentTurn = true;
 		counter.set(0);
@@ -224,6 +218,25 @@ public class Board extends Application {
 	
 	
 	private void LoadGame() {
+		
+		VBox v = new VBox();
+		TextArea tb = new TextArea();
+		Button b = new Button("load FEN");
+		
+		b.setOnAction(e -> {
+			if(tb.getText() != null) {
+				parsePosition(tb.getText());
+				redraw(grid);
+			}
+		});
+		
+		v.getChildren().addAll(tb,b);
+		
+		Stage smallmenu = new Stage();
+		Scene smScene = new Scene(v,700,125);
+		smallmenu.setScene(smScene);
+		smallmenu.show();
+	
 		
 	}
 	
@@ -241,6 +254,9 @@ public class Board extends Application {
 		}
 	}
 	
+	
+	
+	
 	/*
 	 * Offers draw to Mayflower
 	 * 
@@ -257,7 +273,7 @@ public class Board extends Application {
 		}
 		else {
 			sb.append("Draw offered by player");
-			if(MSystem.DrawDecision(board, turn, counter.get())) {
+			if(GameLogic.DrawDecision(board, turn, currentTurn)) {
 				gameRunning = false;
 				sb.append("draw accepted");
 			}
@@ -288,12 +304,54 @@ public class Board extends Application {
 		counter.set(counter.getValue()+1);
 		sb.append(pieceSymbol(piece,y,tx,ty)+" ");
 		
-		System.out.println("movecounter: "+moveCounter+" counter: "+counter+"\n");
+		System.out.println("botColor "+BotColor+", current turn "+currentTurn+", movecounter: "+moveCounter+" counter: "+counter+"\n");
+		
+		if(currentTurn == BotColor) {
+			QueryEngine();
+		}
+	}
+	
+	
+	private void QueryEngine() {
+		
+		int[] move = new int[4];
+		
+		if(!freePlay && currentTurn == BotColor) {
+			
+			mayflower.setState(board, turn, BotColor);
+			mayflower.interrupt();
+			
+			while(mayflower.getMove() == null) {
+				//System.out.println("computing..");
+			}
+			System.out.println(Arrays.toString(mayflower.getMove()));
+			
+			move = mayflower.getMove();
+			
+			//handle resignation
+			if(move.length == 1) {
+				if(PlayerColor) {
+					sb.append("White wins by resignation");
+				}
+				else {
+					sb.append("Black wins by resignation");
+				}
+				gameRunning = false;
+				return;	
+			}
+			else if(move.length == 2) {
+				drawOfferedByBot = true;
+				sb.append("Draw offered by mayflower -- press 'Draw' to accept, play move to decline");
+			}
+			System.out.println("+++++++++");
+			makeMove(board[move[0]][move[1]],move[0],move[1],move[2],move[3]);
+			redraw(grid);
+			setTurn(board[move[2]][move[3]].getName(), move[0], move[2], move[3]);
+		}
 	}
 	
 	
 	private GridPane redraw(GridPane grid) {
-		
 		int i;
 		int j;
 		int i2 = 0;
@@ -332,9 +390,7 @@ public class Board extends Application {
 				square.setId(temp+""+temp2);
 				square.getChildren().add(canvas);
 				square.getChildren().add(piece);
-				square.setOnMousePressed(e -> {squareSelector(square,temp,temp2);
-					((Rectangle)(square.getChildren().get(0))).setFill(new Color(0.53, 0.59, 0.57, 1));
-					});
+				square.setOnMousePressed(e -> {squareSelector(square,temp,temp2);});
 				GridPane.setConstraints(square,i2,j2);
 				grid.getChildren().add(square);
 				
@@ -345,19 +401,27 @@ public class Board extends Application {
 			}
 		}
 			
-	
 		
 		return grid;
 	}
 	
 	
 	private void squareSelector(Pane p, int x, int y) {
+		if(!gameRunning) {
+			return;
+		}
 		if(awaitingMove) {
-			squareValidator(p,startX,startY,x,y);
+			try {
+				squareValidator(p,startX,startY,x,y);
+			} catch (NullPointerException npe) {
+				
+			}
+			
 			((Rectangle)(p.getChildren().get(0))).setFill(selectedColor);
 			awaitingMove = false;
 		}
 		else {
+			((Rectangle)(p.getChildren().get(0))).setFill(new Color(0.53, 0.59, 0.57, 1));
 			startX = x; 
 			startY = y;
 			awaitingMove = true;
@@ -369,7 +433,7 @@ public class Board extends Application {
 
 		int result = 0;
 		
-		int[] move = new int[4];
+		
 		
 		if(currentTurn == PlayerColor || freePlay) {
 			System.out.println("\n#################### START MOVE: moving "+board[sx][sy].getName()+" from "+sx+","+sy+" to "+tx+","+ty);
@@ -378,6 +442,8 @@ public class Board extends Application {
 			System.out.println("testing: move is "+result);
 			
 			if(result == 0 || result == 5) {
+				//PositionFeature.initFeatures(board, currentTurn, turn);
+				
 				makeMove(board[sx][sy],sx,sy,tx,ty);
 			}
 			else if(result == 2){
@@ -394,6 +460,7 @@ public class Board extends Application {
 				gameRunning = false;
 			}
 			else if(result == 6) {
+				redraw(grid);
 				sb.append("Draw.\n");
 				gameRunning = false;
 			}
@@ -430,47 +497,16 @@ public class Board extends Application {
 				sb.append("\nIllegal move");
 			}
 			
-			if(result != 1 && result != 2 && result != 12) {
-				setTurn(board[tx][ty].getName(), sx, tx, ty);
+			if(result != 1 && result != 2 && result != 12 && result != 6) {
 				redraw(grid);
+				setTurn(board[tx][ty].getName(), sx, tx, ty);
 				if(result == 5) {
 					sb.append("+ ");
 				}
 			}
 			
 		}
-		else if(!freePlay && currentTurn == BotColor) {
-			
-			e.setState(board, turn, BotColor);
-			e.interrupt();
-			
-			while(e.getMove() == null) {
-				System.out.println("computing..");
-			}
-			System.out.println(e.getMove());
-			
-			move = e.getMove();
-			
-			//handle resignation
-			if(move.length == 1) {
-				if(PlayerColor) {
-					sb.append("White wins by resignation");
-				}
-				else {
-					sb.append("Black wins by resignation");
-				}
-				gameRunning = false;
-				return;	
-			}
-			else if(move.length == 2) {
-				drawOfferedByBot = true;
-				sb.append("Draw offered by mayflower -- press 'Draw' to accept, play move to decline");
-			}
-			
-			makeMove(board[move[0]][move[1]],move[0],move[1],move[2],move[3]);
-			redraw(grid);
-			setTurn(board[move[2]][move[3]].getName(), move[0], move[2], move[3]);
-		}
+
 
 		console.setText(sb.toString());
 
@@ -527,7 +563,7 @@ public class Board extends Application {
 									if(board[tX][tY] != null) {
 										board[tX][tY].setCoords(-1, -1);			
 									}
-									board[tX][tY] = new Piece("rook_"+colorChar,maxID+1,currentTurn,tX,tY);
+									board[tX][tY] = new Piece("rook_"+colorChar,maxID+1,maxID+1,currentTurn,tX,tY);
 									board[tX][tY].setCoords(tX, tY);
 									 board[X][Y] = null;
 									 grid.getChildren().remove(grid.getChildren().size()-1);
@@ -541,7 +577,7 @@ public class Board extends Application {
 									if(board[tX][tY] != null) {
 										board[tX][tY].setCoords(-1, -1);			
 									}
-									board[tX][tY] = new Piece("knight_"+colorChar,maxID+2,currentTurn,tX,tY);
+									board[tX][tY] = new Piece("knight_"+colorChar,maxID+2,maxID+2,currentTurn,tX,tY);
 									board[tX][tY].setCoords(tX, tY);
 									board[X][Y] = null;
 									grid.getChildren().remove(grid.getChildren().size()-1);
@@ -555,7 +591,7 @@ public class Board extends Application {
 									if(board[tX][tY] != null) {
 										board[tX][tY].setCoords(-1, -1);			
 									}
-									board[tX][tY] = new Piece("bishop_"+colorChar,maxID+3,currentTurn,tX,tY);
+									board[tX][tY] = new Piece("bishop_"+colorChar,maxID+3,maxID+3,currentTurn,tX,tY);
 									board[tX][tY].setCoords(tX, tY);
 									board[X][Y] = null;
 									grid.getChildren().remove(grid.getChildren().size()-1);
@@ -568,7 +604,7 @@ public class Board extends Application {
 									if(board[tX][tY] != null) {
 										board[tX][tY].setCoords(-1, -1);			
 									}
-									board[tX][tY] = new Piece("queen_"+colorChar,maxID+4,currentTurn,tX,tY);
+									board[tX][tY] = new Piece("queen_"+colorChar,maxID+4,maxID+4,currentTurn,tX,tY);
 									board[tX][tY].setCoords(tX, tY);
 									board[X][Y] = null;
 									grid.getChildren().remove(grid.getChildren().size()-1);
@@ -660,30 +696,219 @@ public class Board extends Application {
 
 	}
 	
+	/*
+	 * parses position strings like:
+	 * 
+	 * rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+	 */
+	
+	private static void parsePosition(String FEN) {
+			
+			boolean firstBlackRook = true;
+			boolean firstBlackKnight = true;
+			boolean firstBlackBishop = true;
+			boolean firstWhiteRook = true;
+			boolean firstWhiteKnight = true;
+			boolean firstWhiteBishop = true;
+			
+			int uniqueBP = 0;
+			int uniqueWP = 0;
+			
+			int index = 0;
+			int n = 0;
+			int read = -1;
+			
+			for(int i = 0; i<8; i++) {
+				for(int j = 0; j<8; j++) {
+	
+				
+					
+				try {
+					n = Integer.parseInt(FEN.charAt(index)+"");
+				} 
+				
+				catch (NumberFormatException e) {
+					
+					if(read != -1) {
+						//set active color
+						if(FEN.charAt(index) == 'b') {
+							
+						}
+						else if(FEN.charAt(index) == 'w') {
+							
+						}
+						//set castling rights, if found
+						if(read == 1) {
+							if(FEN.charAt(index) != '-') {
+								int t = index;
+								String castlingRights = "";
+								while(FEN.charAt(t) != ' ') {
+									castlingRights += FEN.charAt(t);
+									t++;
+								}
+								if(castlingRights.contains("K")) {
+									//RuleSet.setCastling(-1,);
+								}
+								if(castlingRights.contains("Q")) {
+									
+								}
+								if(castlingRights.contains("k")) {
+									
+								}
+								if(castlingRights.contains("q")) {
+									
+								}
+							}
+						}
+						//set en passant square if found
+						else if(read == 2) {
+							if(FEN.charAt(index) != '-') {
+								//TODO: convert square, set enpassant square
+								//setEnPassantSquare(t);
+							}
+						}
+						//set half moves 
+						else if(read == 3) {
+							counter.set(Integer.parseInt(FEN.charAt(index)+""));
+						}
+						//set full moves
+						else if(read == 4) {
+							turn = Integer.parseInt(FEN.charAt(index)+"");
+						}
+					}
+					
+					switch(FEN.charAt(index)) {
+	
+					case 'r':
+						if(firstBlackRook) {
+							board[i][j] = new Piece("rook_b", 11, 11, false,i,j);
+							firstBlackRook = false;
+						}
+						else {
+							board[i][j] = new Piece("rook_b", 11, 18, false,i,j);
+						}
+						break;	
+					case 'n':
+						if(firstBlackKnight) {
+							board[i][j] = new Piece("knight_b",12,12,false,i,j);
+							firstBlackKnight = false;
+						}
+						else {
+							board[i][j] = new Piece("knight_b",12,17,false,i,j);
+						}
+						break;
+						
+					case 'b':
+						if(firstBlackBishop) {
+							board[i][j] = new Piece("bishop_b",13,13,false,i,j);
+							firstBlackBishop = false;
+						}
+						else {
+							board[i][j] = new Piece("bishop_b",14,16,false,i,j);
+						}
+						break;
+					case 'q':
+						board[i][j] = new Piece("queen_b",15,14,false,i,j);
+						break;
+					case 'k':
+						board[i][j] = new Piece("king_b",16,15,false,i,j);
+						break;
+					case 'p':
+						board[i][j] = new Piece("pawn_b",17,19+uniqueBP,false,i,j);
+						uniqueBP++;
+						break;
+						
+					case 'R':
+						if(firstWhiteRook) {
+							board[i][j] = new Piece("rook_w", 18, 27, true,i,j);
+							firstWhiteRook = false;
+						}
+						else {
+							board[i][j] = new Piece("rook_w", 18, 34, true,i,j);
+						}
+						break;
+					case 'N':
+						if(firstWhiteKnight) {
+							board[i][j] = new Piece("knight_w",19,28,true,i,j);
+							firstWhiteKnight = false;
+						}
+						else {
+							board[i][j] = new Piece("knight_w",19,33,true,i,j);
+						}
+						break;
+					case 'B':
+						if(firstWhiteBishop) {
+							board[i][j] = new Piece("bishop_w",20,29,true,i,j);
+							firstWhiteBishop = false;
+						}
+						else {
+							board[i][j] = new Piece("bishop_w",21,32,true,i,j);
+						}
+						break;
+					case 'Q':
+						board[i][j] = new Piece("queen_w",21,30,true,i,j);
+						break;
+					case 'K':
+						board[i][j] = new Piece("king_w",22,31,true,i,j);
+						break;
+					case 'P':
+						board[i][j] = new Piece("pawn_w",17,19+uniqueWP,true,i,j);
+						uniqueWP++;
+						break;
+					case '/':
+						continue;
+					case ' ':
+						read++;
+						break;
+					
+					}
+					index++;
+					continue;
+				}
+					
+				//we end up here if current character is numeric, then we want to advance the y-coordinate by the number as a character currently
+				//after setting the required number of null/empty squares
+				
+				
+				for(int temp = j; temp<j+n; temp++) {
+					board[i][temp] = null;
+				}
+				j += n;
+				
+				
+				index++;
+					
+				}
+			}
+			
+			
+		
+	}
 
-	private void initBoard(GridPane grid) {
+	private GridPane initBoard(GridPane grid) {
 		
-		board[0][0] = new Piece("rook_b",11,false,0,0);
-		board[0][1] = null;//new Piece("knight_b",22,false,0,1);
-		board[0][2] = null;//new Piece("bishop_b",13,false,0,2);
-		board[0][3] = new Piece("queen_b",14,false,0,3);
-		board[0][4] = new Piece("king_b",15,false,0,4);
-		board[0][5] = new Piece("bishop_b",16,false,0,5);
-		board[0][6] = new Piece("knight_b",17,false,0,6);
-		board[0][7] = new Piece("rook_b",18,false,0,7);
 		
-		board[7][0]  = new Piece("rook_w",19,true,7,0);
-		board[7][1]  = new Piece("knight_w",20,true,7,1);
-		board[7][2]  = new Piece("bishop_w",21,true,7,2);
-		board[7][3]  = new Piece("queen_w",22,true,7,3);
-		board[7][4]  = new Piece("king_w",23,true,7,4);
-		board[7][5]  = new Piece("bishop_w",24,true,7,5);
-		board[7][6]  = new Piece("knight_w",25,true,7,6);
-		board[7][7]  = new Piece("rook_w",26,true,7,7);
+		board[0][0] = new Piece("rook_b",11,11,false,0,0);
+		board[0][1] = new Piece("knight_b",12,12,false,0,1);
+		board[0][2] = new Piece("bishop_b",13,13,false,0,2);
+		board[0][3] = new Piece("queen_b",15,14,false,0,3);
+		board[0][4] = new Piece("king_b",16,15,false,0,4);
+		board[0][5] = new Piece("bishop_b",14,16,false,0,5);
+		board[0][6] = new Piece("knight_b",12,17,false,0,6);
+		board[0][7] = new Piece("rook_b",11,18,false,0,7);
+		
+		board[7][0]  = new Piece("rook_w",18,27,true,7,0);
+		board[7][1]  = new Piece("knight_w",19,28,true,7,1);
+		board[7][2]  = new Piece("bishop_w",20,29,true,7,2);
+		board[7][3]  = new Piece("queen_w",21,30,true,7,3);
+		board[7][4]  = new Piece("king_w",22,31,true,7,4);
+		board[7][5]  = new Piece("bishop_w",21,32,true,7,5);
+		board[7][6]  = new Piece("knight_w",19,33,true,7,6);
+		board[7][7]  = new Piece("rook_w",18,34,true,7,7);
 		
 		for (int i = 0; i < 8; i++) {
-			board[1][i] = new Piece("pawn_b",27+i,false,1,i);
-			board[6][i] = new Piece("pawn_w",35+i,true,6,i);
+			board[1][i] = new Piece("pawn_b",17,19+i,false,1,i);
+			board[6][i] = new Piece("pawn_w",23,35+i,true,6,i);
 		}
 		
 		for(int i = 2; i<6; i++) {
@@ -691,14 +916,30 @@ public class Board extends Application {
 				board[i][j] = null;
 			}
 		}
+
 		
-		board[1][2] = new Piece("pawn_w",88,true,1,2);
+		return redraw(grid);
 		
-		redraw(grid);
-		System.out.println(Resources.calculateHash(board));
+		
 
 	}
 	
+	
+	public static ArrayList<String> getPosList(){
+		return posList;
+	}
+	
+	public static void setWOPMORC(int i) {
+		turnsWoPMOrC = i;
+	}
+	
+	public static void incrementWOPMORC() {
+		turnsWoPMOrC++;
+	}
+	
+	public static int getWOPMORC() {
+		return turnsWoPMOrC;
+	}
 	
 	private void colorChanger(GridPane grid) {
 		colorSwitch = (colorSwitch+1) % 3; 
@@ -728,14 +969,16 @@ class Piece{
 	
 	private String name;
 	private int id;
+	private int gid;
 	private boolean color;
 	private int x;
 	private int y;
 
 	
-	public Piece(String name, int id, boolean color, int x, int y) {
+	public Piece(String name, int id, int gid, boolean color, int x, int y) {
 		this.name = name;
 		this.id = id;
+		this.gid = gid;
 		this.color = color;
 		this.x = x;
 		this.y = y;
@@ -751,6 +994,10 @@ class Piece{
 	
 	public int getId() {
 		return id;
+	}
+	
+	public int getGid() {
+		return gid;
 	}
 	
 	public String getName() {

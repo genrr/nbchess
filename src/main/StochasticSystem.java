@@ -24,6 +24,12 @@ public class StochasticSystem extends Thread{
 	
 	private static int startX = 57;
 	
+	//--
+	
+	private static double[] SP = new double[26];
+	
+	
+	
 	/*
 	public void run() {
 		System();
@@ -50,34 +56,41 @@ public class StochasticSystem extends Thread{
 	*/
 	
 	
+	
 	public static void initSystem(int rngSource,int rndLevel,int function) {
 		
-		switch(rngSource) {
-		case 0:
-			sineImpl(startX);
-			break;
-		case 1:
-			lnImpl(2);
-			break;
-		case 2:
-			geomImpl();
-			break;
-		case 3:
-			statisticalImpl();
-			break;
-		case 4:
-			modularFunction1Impl(startX);
-			break;
-		default:
-			sineImpl(startX);
-			break;
-		}
+		int t = 0;
 		
+		while(t < 26) {
+			SP[t] = get(rngSource);
+			t++;
+		}
 		
 		
 		
 	}
 	
+	public static void inputDiffs(double[][] data) {
+		
+	}
+	
+	
+	private static double get(int source) {
+		switch(source) {
+		case 0:
+			return sineImpl(startX);
+		case 1:
+			return lnImpl(2);
+		case 2:
+			return geomImpl();
+		case 3:
+			return statisticalImpl();
+		case 4:
+			return modularFunction1Impl(startX);
+		default:
+			return sineImpl(startX);
+		}
+	}
 	
 	private static double function(double x) {
 		
@@ -110,11 +123,11 @@ public class StochasticSystem extends Thread{
 		return Math.pow(Math.log(x) - 1,0.3);
 	}
 	
-	private static void geomImpl() {
+	private static double geomImpl() {
 		
 	}
 	
-	private static void statisticalImpl() {
+	private static double statisticalImpl() {
 		
 	}
 	

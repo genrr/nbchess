@@ -60,6 +60,7 @@ public class Resources {
 					t[i] = 10;
 				}
 				else {
+					
 					t[i] = piece.getId();
 				}
 				i++;
