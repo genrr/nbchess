@@ -1,6 +1,8 @@
 package main;
 
 import java.util.ArrayList;
+import java.util.Random;
+
 
 public class MGameUtility {
 	
@@ -15,15 +17,16 @@ public class MGameUtility {
 	
 public static int distance(Piece[][] b, Piece piece, int startX, int startY, int targetX, int targetY,boolean eval) {
 	
-	boolean onceAndDiagonal = false;
+	boolean canMoveDiagonally = false;
 	board = b;
 	int dist = 0;
 	
 	//System.out.println("testing distance between: "+piece.getName()+" at ("+piece.getX()+","+piece.getY()+") -> ("+targetX+","+targetY+")");
 	
-	//sX == tX && sY == tY, same square
+	// sX == tX && sY == tY, same square, return 1 for use in other functions, although technically,
+	// distance != 1
 	if(startX == targetX && startY == targetY) {
-		return 1;
+		return 1; 
 	}
 	
 
@@ -38,19 +41,36 @@ public static int distance(Piece[][] b, Piece piece, int startX, int startY, int
 		dist = RookMoveDist(startX,startY,targetX,targetY);
 	}
 	else if(piece.getName().contains("pawn")) {
-		if(board[targetX][targetY] != null) {
+		
 			
-			int[] p = RuleSet.nettyPater(startX, startY, targetX, targetY);
+		int[] p = RuleSet.nettyPater(startX, startY, targetX, targetY);
+		
+		
+		//target square is diagonal
+		if((piece.getColor() && ((p[0] == -1 && p[1] == 1) || (p[0] == -1 && p[1] == -1))) ||
+		  (!piece.getColor() && ((p[0] == 1 && p[1] == -1) || (p[0] == 1 && p[1] == 1)))) {
 			
-			if((piece.getColor() && ((p[0] == -1 && p[1] == 1) || (p[0] == -1 && p[1] == -1))) ||
-			  (!piece.getColor() && ((p[0] == 1 && p[1] == -1) || (p[0] == 1 && p[1] == 1)))) {
-				onceAndDiagonal = true;
+			if(board[targetX][targetY] != null) {
+				canMoveDiagonally = true;
+			}
+			else {
+				//canMoveDiagonally == false
+				//
+				// 0  0  0
+				//-2  1 -2
+				// 2  2  2
+				
+				return -2;
 			}
 			
 			
 		}
+			
+			
+			
 		
-		dist = PawnMoveDist(piece,startX,startY,targetX,targetY,onceAndDiagonal);
+		
+		dist = PawnMoveDist(piece,startX,startY,targetX,targetY,canMoveDiagonally);
 		
 		//if distance is one && target square is not empty && not diagonal -> pawn cannot move to target, return 0
 		if(dist == 1 && board[targetX][targetY] != null && targetY == startY) {
@@ -358,7 +378,7 @@ private static int BishopMoveDist(int X, int Y,int tX,int tY) {
 		}
 		
 		
-		System.out.println("before "+i+" "+j);
+		//System.out.println("before "+i+" "+j);
 
 		
 		while(i < 8 && j < 8 && i > -1 && j > -1 && Math.abs(tX-i) != Math.abs(tY-j)) {
@@ -377,7 +397,7 @@ private static int BishopMoveDist(int X, int Y,int tX,int tY) {
 		d1 = tX-X + -1*t1;
 		d2 = tY-Y + -1*t2;
 		
-		System.out.println("after "+i+" "+j);
+		//System.out.println("after "+i+" "+j);
 		
 		if((!CheckInBetween(X,Y,i,j) && !CheckInBetween(i,j,tX,tY)) ||
 		   X+d1 < 8 && X+d1 > -1 && Y+d2 < 8 && Y+d2 > -1 && 
@@ -510,7 +530,7 @@ private static int QueenMoveDist(int X, int Y,int tX,int tY) {
 
 public static boolean CheckInBetween(int X, int Y, int tX, int tY){
 	
-	System.out.println("X:"+X+" Y:"+Y+" tX:"+tX+" tY:"+tY);
+	
 	
 	//set local variables:
 	
@@ -527,13 +547,19 @@ public static boolean CheckInBetween(int X, int Y, int tX, int tY){
 	int multY = (int) Math.signum(tY-Y);
 	
 	
+	//System.out.println("X:"+X+" Y:"+Y+" tX:"+tX+" tY:"+tY+" t: "+t);
+	
+	
 	//iterate t times
 	while(i < t){
+		
+		
 		//either decrease or increase both temp vars by one, depending on the direction (multX, multY)
 		t1 += multX;
 		t2 += multY;
 		i++;
 		
+		//System.out.println("t1: "+t1+" t2: "+t2);
 		
 		if(board[X][Y] != null && board[t1][t2] != null){
 			
@@ -609,7 +635,123 @@ public static boolean CheckInBetween(int X, int Y, int tX, int tY){
 		}
 		return 1;
 		
+		
 	}
+	
+	
+	
+	public static ArrayList<int[]> getAllMoves(Piece[][] board, boolean white) {
+		
+		ArrayList<int[]> list = new ArrayList<int[]>();
+		ArrayList<Piece> pieces = ReturnAllPieces(board, white);
+		
+		for (Piece p : pieces) {
+	
+			for (int i = 0; i < 8; i++) {
+				for (int j = 0; j < 8; j++) {
+					if(distance(board, p, p.getX(), p.getY(), i, j, false) == 1) {
+						list.add(new int[] {p.getX(),p.getY(),i,j});
+					}
+				}
+			}
+		}
+		
+		
+		
+		return list;
+	}
+	
+	
+	
+	public static Piece[][] generatePos(Piece[][] board, ArrayList<Piece> pieces1, ArrayList<Piece> pieces2, double[] diff, Objectives O, int optimizationLevel){
+		
+		Random r = new Random();
+		int k = 5;
+		int tempX;
+		int tempY;
+		int t = 36;
+		Piece[][] pos = new Piece[8][8];
+		
+		for (int i = 0; i < 8; i++) {
+			for (int j = 0; j < 8; j++) {
+				pos[i][j] = null;
+			}
+		}
+		
+		
+		for (Piece p : pieces1) {
+			
+			for (int i = 0; i < 8; i++) {
+				for (int j = 0; j < 8; j++) {
+					do {
+						tempX = r.nextInt(8);
+						tempY = r.nextInt(8);
+						t--;
+						
+						if(t < 0) {
+							pos[p.getX()][p.getY()] = p;
+							break;
+						}
+						
+					} while (distance(board,p,p.getX(),p.getY(),tempX,tempY,false) > k || board[tempX][tempY].getColor() == p.getColor());
+					
+					pos[tempX][tempY] = p;
+				}
+			}
+		}
+		
+		t = 36;
+		
+		for (Piece p : pieces2) {
+			
+			for (int i = 0; i < 8; i++) {
+				for (int j = 0; j < 8; j++) {
+					do {
+						tempX = r.nextInt(8);
+						tempY = r.nextInt(8);
+						t--;
+						
+						if(t < 0) {
+							pos[p.getX()][p.getY()] = p;
+							break;
+						}
+						
+					} while (distance(board,p,p.getX(),p.getY(),tempX,tempY,false) > k || board[tempX][tempY].getColor() == p.getColor());
+					
+					pos[tempX][tempY] = p;
+					
+				}
+			}
+		}
+		
+		return pos;
+		
+	}
+	
+	public static boolean checkCharacter(Piece[][] pos, int chr) {
+		
+		
+		
+	}
+	
+	
+	public static int posDist(Piece[][] pos1, Piece[][] pos2) {
+		
+		
+	}
+	
+	
+	public static Piece[][][] lineConnect(Piece[][] pos1, Piece[][] pos2, ComplexSystem c){
+		
+		
+		
+		
+	}
+	
+	public static boolean connectionSolver(Piece[][] pos1, Piece[][] pos2) {
+		
+	}
+	
 	
 	
 	public static double unitValue(Piece unit) {
@@ -646,7 +788,7 @@ public static boolean CheckInBetween(int X, int Y, int tX, int tY){
 		ArrayList<Piece> returnTable = new ArrayList<Piece>();
 		
 		for (int i = 0; i < 8; i++) {
-			for (int j = 0; j < 8; j++) {
+			for (int j = 0; j < 8; j++) {				
 				if(board[i][j] != null && board[i][j].getColor() == color) {
 					returnTable.add(board[i][j]);
 					
@@ -713,11 +855,32 @@ class Path{
 		}
 		return i;
 	}
-	
-	
-	
-	
-	
+
 	
 }
 
+class Move{
+	
+	Piece piece = null;
+	int tX;
+	int tY;
+	
+	public Move(Piece p, int tX, int tY) {
+		piece = p;
+		this.tX = tX;
+		this.tY = tY;
+	}
+	
+	public Piece getPiece() {
+		return piece;
+	}
+	
+	public int getX() {
+		return tX;
+	}
+	
+	
+	public int getY() {
+		return tY;
+	}
+}

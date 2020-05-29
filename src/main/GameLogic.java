@@ -1,47 +1,41 @@
 package main;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
 public class GameLogic {
 	
-	private static ArrayList<double[]> features;
+	private static double[] heuristics;
+	static Objectives o;
+	private static double[][] eval = new double[3][26];
 	
 	private static boolean drawOffered = false;
-	private static ArrayList<Double> features1;
-	private static ArrayList<Double> features2;
-	private static ArrayList<Double> features3;
-	private static ArrayList<Double> features4;
-	private static ArrayList<Integer> features5;
-	private static ArrayList<Integer> features6;
-	private static ArrayList<Integer> features7;
-	private static ArrayList<Integer> features8;
-	private static ArrayList<Integer> features9;
-	private static ArrayList<Double> features10;
-	private static ArrayList<Double> features11;
-	private static ArrayList<Double> features12;
-	private static ArrayList<Double> features13;
-	private static ArrayList<Double> features14;
-	private static ArrayList<Integer> features15;
-	private static ArrayList<Integer> features16;
-	private static ArrayList<Integer> features17;
-	private static ArrayList<Integer> features18;
-	private static ArrayList<Integer> features19;
-	private static ArrayList<Integer> features20;
-	private static ArrayList<Integer> features21;
-	private static ArrayList<Double> features22;
-	private static ArrayList<Double> features23;
-	private static ArrayList<Integer> features24;
-	private static ArrayList<Double> features25;
-	private static ArrayList<Double> features26;
+
 	
+
+	public static int positionsSPn = 16;
+	public static double tldSP = 3.4;
+	public static double tObj = 12.5;
 	
 	public static int MAIN_ITERATIONS = 32768;
 	public static int RANDOMNESS_LEVEL = 4350;
 	public static int RANDOMNESS_SOURCE = 0;
 	public static int FUNCTION_CHOICE = 2;
 	public static int RESIGN_THRESHOLD = 3;
+	public static int DIST_THRESHOLD = 5;
+	public static int LINES_AMOUNT = 42;
+	public static int LINES_TOP = 16;
+	
+	
+	private static double[] localSP;
+	private static int[][] localO;
+	private static double[] localEV;
+	private static double[][] localR;
+	private static double[][] localRV;
+	private static ComplexSystem c;
+	private static Piece[][][] localSPn;
 	
 	
 	/*
@@ -62,25 +56,26 @@ public class GameLogic {
 	}
 
 	/*
-	 * init features called once a game
+	 * init features and
+	 * init C & SP at the start of the game
 	 */
 	
 	public static void InitData() {
+		Random r = new Random();
+		heuristics = new double[26];
+		double[] initialValues = new double[26];
 		
-		features = new ArrayList<double[]>();
+		c = new ComplexSystem(RANDOMNESS_SOURCE, RANDOMNESS_LEVEL, FUNCTION_CHOICE);
+		c.start();
+		
+		for(int i = 0; i<26; i++) {
+			initialValues[i] = 6*r.nextDouble()-3;
+		}
 
-		
-		
+		StandardPosition SP = new StandardPosition(initialValues);
+		o = new Objectives();
 	}
 	
-	/*
-	 * init SP at the start of the game
-	 */
-	
-	public static void InitSP() {
-		StochasticSystem.initSystem(RANDOMNESS_SOURCE, RANDOMNESS_LEVEL, FUNCTION_CHOICE);
-		
-	}
 	
 	
 	/*
@@ -89,31 +84,77 @@ public class GameLogic {
 	 * 
 	 */
 	
-	public static int[] Generate(Piece[][] board, int turnNumber, boolean white) {
+	public static int[] Generate(Pipeline p, Piece[][] board, int turnNumber, boolean white) {
 		
 		
-		features.add(new double[26]);
-		features.get(0)[17]++;
-		
+		/*//measure
 		MeasurePosition(board,white,turnNumber);
 		
-		//init board states
-		MSystem.ComputeMetrics(board);
-		StochasticSystem.inputDiffs(MSystem.ComputeDifferences(features));
-		
-		//start mine (generate - search - evaluate)
-		int i = 0;
-		while(i < MAIN_ITERATIONS) {
-			//StochasticSystem.();
-			//search
-			//evaluate
-			i++;
+		//evaluate
+		double[] evalValues = new double[26];
+		for(int i = 0; i<26; i++) {
+			evalValues[i] = evaluate(i+1, heuristics[i]);
 		}
 		
-	
 		
+		GameSystem.optimize(board, white, evalValues, c, o, p);
+		
+		
+		
+		 * 
+		 * 
+		 * 
+		 * 
+		 * 
+		 * 
+		 * 
+		//init board states
+		MSystem.ComputeMetrics(board);
+		
+		double[] diff = new double[26];
+		localSP = p.getSP();
+		
+		for(int i = 1; i<27; i++) {
+			diff[i-1] = (features.get(turnNumber)[i-1] - localSP[i-1]);
+		}
+		
+		localSPn = GameSystem.optimize(diff,c,positionsSPn);
+		
+		//rank localSPn, get LINES_TOP amount of lines := localSPn, store rest in pipeline p, 
+		
+		run lineConnect (possibly connectionSolver()) on localSPn
+		
+		adversary search
+		
+		deep search
+		
+		
+		extrapolation
+		
+		
+		pruning
+		
+		pattern evaluations
+		
+		zeta-limit
+		
+		zeta eval & output & store lines, data etc in pipeline
+		p.interrupt();
+		p.inputData(localSP, localO, localSPn, localEV, localR, localRV);
+		
+		final search, connections
+		rank lines by function a*SP + b*H + c*O
+		return first lines first move
+*/
 
-		return new int[] {0,1,1,2};
+		
+		ArrayList<int[]> t = MGameUtility.getAllMoves(board, white);
+		
+		Random r = new Random();
+		
+		
+		
+		return t.get(r.nextInt(t.size()));
 		/*
 		
 		ArrayList<int[]> candidateMoves = run(board,turnNumber,white);
@@ -138,8 +179,15 @@ public class GameLogic {
 		bestMove[3] = candidateMoves.get(0)[3];
 		 
 		
+
+		
+		
 		
 		return bestMove; 
+		
+		
+		
+		
 		*/
 	}
 	
@@ -152,35 +200,36 @@ public class GameLogic {
 	
 		
 		PositionFeature.initFeatures(board, white, turnNumber);
+
 		
-		features.add(new double[26]);
+		heuristics[0] = PositionFeature.RelM();
+		heuristics[1] = PositionFeature.RelMAVG();
+		heuristics[2] = PositionFeature.RelMV();
+		heuristics[3] = PositionFeature.RelPVAVG();
+		heuristics[4] = PositionFeature.BestPiece();
+		heuristics[5] = PositionFeature.KingSquaresSafetyMetric();
+		heuristics[6] = PositionFeature.RelDistanceFromDefault();
+		heuristics[7] = PositionFeature.MinDistKing_Enemy();
+		heuristics[8] = PositionFeature.MinDistKing_Own();
+		heuristics[9] = PositionFeature.PercentThreat_Own();
+		heuristics[10] = PositionFeature.PercentThreat_Own();
+		heuristics[11] = PositionFeature.TradeEfficiency();
+		heuristics[12] = PositionFeature.OpenSquareCount();
+		heuristics[13] = PositionFeature.PercentDefended();
+		heuristics[14] = PositionFeature.MostSquaresAvailableForPiece();
+		heuristics[15] = PositionFeature.MostDefensesForPiece();
+		heuristics[16] = PositionFeature.MostFreeSquaresForPiece();
+		heuristics[17] = PositionFeature.MostSquaresSafeForPiece();
+		heuristics[18] = PositionFeature.CountAllAvailableSquares();
+		heuristics[19] = PositionFeature.CountAllFreeSquares();
+		heuristics[20] = PositionFeature.CountAllSafeSquares();
+		heuristics[21] = PositionFeature.MoveProgressionLength();
+		heuristics[22] = PositionFeature.MoveProgressionBranching();
+		heuristics[23] = PositionFeature.CountProgressionVisibleBranches();
+		heuristics[24] = PositionFeature.PositionComplexity();
+		heuristics[25] = PositionFeature.ComplexityRatio();
 		
-		features.get(turnNumber-1)[0] = PositionFeature.RelM();
-		features.get(turnNumber-1)[1] = PositionFeature.RelMAVG();
-		features.get(turnNumber-1)[2] = PositionFeature.RelMV();
-		features.get(turnNumber-1)[3] = PositionFeature.RelPVAVG();
-		features.get(turnNumber-1)[4] = PositionFeature.BestPiece();
-		features.get(turnNumber-1)[5] = PositionFeature.KingSquaresSafetyMetric();
-		features.get(turnNumber-1)[6] = PositionFeature.RelDistanceFromDefault();
-		features.get(turnNumber-1)[7] = PositionFeature.MinDistKing_Enemy();
-		features.get(turnNumber-1)[8] = PositionFeature.MinDistKing_Own();
-		features.get(turnNumber-1)[9] = PositionFeature.PercentThreat_Own();
-		features.get(turnNumber-1)[10] = PositionFeature.PercentThreat_Own();
-		features.get(turnNumber-1)[11] = PositionFeature.AmountOfPieces();
-		features.get(turnNumber-1)[12] = PositionFeature.OpenSquareCount();
-		features.get(turnNumber-1)[13] = PositionFeature.PercentDefended();
-		features.get(turnNumber-1)[14] = PositionFeature.MostSquaresAvailableForPiece();
-		features.get(turnNumber-1)[15] = PositionFeature.MostDefensesForPiece();
-		features.get(turnNumber-1)[16] = PositionFeature.MostFreeSquaresForPiece();
-		features.get(turnNumber-1)[17] = PositionFeature.MostSquaresSafeForPiece();
-		features.get(turnNumber-1)[18] = PositionFeature.CountAllAvailableSquares();
-		features.get(turnNumber-1)[19] = PositionFeature.CountAllFreeSquares();
-		features.get(turnNumber-1)[20] = PositionFeature.CountAllSafeSquares();
-		features.get(turnNumber-1)[21] = PositionFeature.MoveProgressionLength();
-		features.get(turnNumber-1)[22] = PositionFeature.MoveProgressionBranching();
-		features.get(turnNumber-1)[23] = PositionFeature.CountProgressionVisibleBranches();
-		features.get(turnNumber-1)[24] = PositionFeature.MoveComplexity();
-		features.get(turnNumber-1)[25] = PositionFeature.PositionComplexity();
+		System.out.println(Arrays.toString(heuristics));
 	}
 
 	private static double calculateDiff(ArrayList<int[]> candidateMoves) {
@@ -214,14 +263,6 @@ public class GameLogic {
 	 */
 	
 	private static ArrayList<int[]> run(Piece[][] board, int turnNumber, boolean turnOfWhite) {
-		//StochasticSystem s = new StochasticSystem();
-		//s.start();
-		
-		//StochasticSystem.initSystem(RANDOMNESS_SOURCE, RANDOMNESS_LEVEL, FUNCTION_CHOICE);
-		
-		PositionFeature.initFeatures(board, turnOfWhite, turnNumber);
-		PositionFeature.writeAll();
-		GameSystem.computeDistances();
 
 		int[] progressions = GameSystem.generate();
 		
@@ -280,7 +321,19 @@ public class GameLogic {
 	
 	
 	
-	
+	private static double evaluate(int heuristic, double value) {
+		
+		//a*sin(b*x + c)
+		
+		double a = eval[0][heuristic];
+		double b = eval[1][heuristic];
+		double c = eval[2][heuristic];
+		
+		return a*Math.sin(b*value + c);
+		
+		
+		
+	}
 	
 	
 	
@@ -321,5 +374,6 @@ public class GameLogic {
 		
 	}
 	
+
 	
 }

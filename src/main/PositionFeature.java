@@ -3,33 +3,46 @@ package main;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+
 public class PositionFeature {
 
 	
-	private static Piece[][] board;
-	private static ArrayList<Piece> ownPieces;
-	private static ArrayList<Piece> enemyPieces;
-	private static ArrayList<Piece> defendingPieces;
+	private static Piece[][] board = null;
+	private static ArrayList<Piece> ownPieces = new ArrayList<Piece>();
+	private static ArrayList<Piece> enemyPieces = new ArrayList<Piece>();
 	private static int turnNumber;
 	private static boolean whitesTurn;
 	private static int branching = 0;
 	
-	private static double f10;
-	private static double f11;
+	//private static double f10;
+	//private static double f11;
 	private static ArrayList<int[]> allLegalSquares = new ArrayList<int[]>();
 	private static ArrayList<int[]> allFreeSquares = new ArrayList<int[]>();
 	private static ArrayList<int[]> allSafeSquares = new ArrayList<int[]>();
 	private static ArrayList<int[]> threatenedByEnemy = new ArrayList<int[]>();
-	private static double[] t;
-	private static int[] t2;
-	private static int[] t3;
-	private static int complexity;
+	private static double[] t = null;
+	private static double[] t2 = null;
+	private static double[] t3 = null;
+	private static double[] t4 = null;
+	private static int complexity = 0;
+	private static int loops = 0;
+	
+	private static ArrayList<Integer> line = new ArrayList<Integer>();
+	private static int init = 0;
 	
 	
 	/*
 	 * pass the board, turn number and current turn
 	 * init local variables
-	 * handle frequently needed arrays of pieces
+	 * compute frequently needed arrays of pieces
+	 * 
+	 * 
+	 * do we need
+	 * 	 * q = amount of pieces / amount of pieces(opponent)
+	 * p = piece value sum / piece value sum(opponent)
+	 * r = relative piece value sum / relative piece value sum(opponent)
+	 * 
+	 * some feature of qpr?
 	 */
 	
 
@@ -37,25 +50,17 @@ public class PositionFeature {
 		board = b;
 		turnNumber = turnN;
 		whitesTurn = currentTurn;
+
+		enemyPieces = MGameUtility.ReturnAllPieces(board, !currentTurn);
+		ownPieces = MGameUtility.ReturnAllPieces(board, currentTurn);
 		
-		if(whitesTurn) {
-			enemyPieces = MGameUtility.ReturnAllPieces(board, false);
-			ownPieces = MGameUtility.ReturnAllPieces(board, true);
-		}
-		else {
-			ownPieces = MGameUtility.ReturnAllPieces(board, false);
-			enemyPieces = MGameUtility.ReturnAllPieces(board, true);
-		}
 		
-		System.out.println("#1");
-		t = HelperFunction1();
-		System.out.println("#2");
+		t = new double[] {2,1,1};//HelperFunction1();
 		HelperFunction2();
-		System.out.println("#3");
-		t2 = HelperFunction3(ownPieces);
-		System.out.println("#4");
-		t3 = HelperFunction3(enemyPieces);
-		System.out.println("#5");
+		t2 = new double[] {1,1,1,1};//HelperFunction3(ownPieces);
+		t3 = new double[] {1,1,1,1};//HelperFunction3(enemyPieces);
+		t4 = HelperFunction4();
+		
 	}
 	
 	
@@ -68,7 +73,6 @@ public class PositionFeature {
 		double maxSafeSquares = 0;
 		boolean safe = true;
 		
-		System.out.println("start");
 		
 		for (Piece p : ownPieces) {
 			
@@ -76,7 +80,6 @@ public class PositionFeature {
 				for(int j = 0; j<8; j++) {
 					
 					if(MGameUtility.distance(board, p, p.getX(), p.getY(), i, j, false) == 1) {
-						System.out.println("#");
 						squares++;
 						allLegalSquares.add(new int[] {i,j});
 						
@@ -112,8 +115,7 @@ public class PositionFeature {
 			safe = true;
 			
 		}
-		
-		System.out.println("return");
+
 		return new double[] {maxSquares,maxFreeSquares,maxSafeSquares};
 	}
 	
@@ -129,24 +131,23 @@ public class PositionFeature {
 		}
 	}
 	
-	public static int[] HelperFunction3(ArrayList<Piece> pieces) {
-		int length = 0;
-		int maxLength = 0;
+	public static double[] HelperFunction3(ArrayList<Piece> pieces) {
+		int depth = 0;
+		int maxDepth = 0;
 		int maxBranches = 0;
-		int visible = 0;
+		int ownLoops = 0;
 		int ownComplexity = 0;
-		ArrayList<Piece> array;
 		
 		
 		for(int i = 0; i<pieces.size(); i++) {
+			//System.out.println("calling on "+pieces.get(i).getName());
 			
-			array = MGameUtility.cloneArrayList(pieces);
-			System.out.println("calling on "+pieces.get(i).getName());
-			length = DefenseTree(array,pieces.get(i).getGid(),pieces.get(i).getGid());
-			System.out.println(length);
+			init = pieces.get(i).getGid();
+			depth = DTree(pieces.get(i).getGid());
+			System.out.println("depth of tree starting on "+i+": "+depth);
 			
-			if(length > maxLength) {
-				maxLength = length; 
+			if(depth > maxDepth) {
+				maxDepth = depth; 
 			}
 			if(branching > maxBranches) {
 				maxBranches = branching;
@@ -154,8 +155,48 @@ public class PositionFeature {
 			branching  = 0;
 		}
 		ownComplexity = complexity;
+		ownLoops = loops;
 		
-		return new int[] {maxLength,maxBranches,visible,ownComplexity};
+		return new double[] {maxDepth,maxBranches,ownLoops,ownComplexity};
+	}
+
+	public static double[] HelperFunction4() {
+		double tradeCount = 0;
+		double attacked = 0;
+		double underThreat = 0;
+		
+		for (Piece piece : ownPieces) {
+			for(Piece enemyPiece : enemyPieces) {
+				if(MGameUtility.distance(board, enemyPiece, enemyPiece.getX(), enemyPiece.getY(),
+						piece.getX(), piece.getY(), false) == 1){
+					underThreat++;
+					tradeCount++;
+					
+					
+					for (Piece piece2 : ownPieces) {
+						
+						if(MGameUtility.distance(board, piece2, piece2.getX(), piece2.getY(),
+							piece.getX(), piece.getY(), false) == -1){
+							tradeCount--;
+						}
+					}
+				}
+			}
+		}
+		
+		for (Piece enemyPiece : enemyPieces) {
+			for(Piece ownPiece : ownPieces) {
+				if(MGameUtility.distance(board, ownPiece, ownPiece.getX(), ownPiece.getY(),
+						enemyPiece.getX(), enemyPiece.getY(), false) == 1){
+					attacked++;
+				}
+			}
+		}
+		
+		
+		
+		return new double[] {underThreat,attacked,tradeCount};
+		
 	}
 	
 	
@@ -167,7 +208,7 @@ public class PositionFeature {
 		
 	}
 	
-	//#2 Relative material AVG values (ratio of whiteAVGValue and blackAVGValue)
+	//#2 Relative material AVG values
 	
 	public static double RelMAVG() {
 		
@@ -204,7 +245,7 @@ public class PositionFeature {
 	}
 
 	
-	//#4 AVG piece value
+	//#4 AVG piece value relative to other own pieces
 	
 	public static double RelPVAVG() {
 		double sum = 0;
@@ -217,7 +258,7 @@ public class PositionFeature {
 	}
 	
 	
-	//#5 highest piece value
+	//#5 highest piece value in relative to other own pieces
 	
 	public static double BestPiece() {
 		double best = 0;
@@ -230,33 +271,13 @@ public class PositionFeature {
 		return best;
 	}
 	
-	//#6 Avg amount of threats to kings squares
+	//#6
 	
-	public static double KingSquaresSafetyMetric() {
-		
-		int x = RuleSet.ReturnKingAndRookPositions(board,whitesTurn)[0];
-		int y = RuleSet.ReturnKingAndRookPositions(board,whitesTurn)[1];
-		
-		ArrayList<int[]> t = RuleSet.GetKingsSquares(x, y);
-		
-		int count = 0;
-		
-		for(int[] d : t) {
-			for(Piece e : enemyPieces) {
-				if(MGameUtility.distance(board, e, e.getX(), e.getY(), d[0], d[1], false) == 1) {
-					count++;
-				}
-			}
-		}
-		
-		return (count*1.0) / t.size(); 
-		
-		
-	}
 	
-	//#7  
 	
-	public static double RelDistanceFromDefault() {
+	//#7 distance of own pieces from start vs enemy pieces from start
+	
+	public static double DistanceFromDefaultRelativeToEnemy() {
 		
 		double ownDiff = 0;
 		double enemyDiff = 0;
@@ -298,6 +319,13 @@ public class PositionFeature {
 				}
 				
 			}
+		}
+		
+		if(ownDiff == 0) {
+			ownDiff = 1;
+		}
+		if(enemyDiff == 0) {
+			enemyDiff = 1;
 		}
 		
 		return ownDiff / enemyDiff;
@@ -351,74 +379,27 @@ public class PositionFeature {
 	//#10 % of own pieces under threat
 	
 	public static double PercentThreat_Own() {
-		
-		double count = 0;
-
-		for (Piece piece : whitePieces) {
-			for(Piece enemyPiece : blackPieces) {
-				if(MGameUtility.distance(board, enemyPiece, enemyPiece.getX(), enemyPiece.getY(), piece.getX(), piece.getY(), false) == 1){
-					count++;
-				}
-			}
-		}
-
-			return count / whitePieces.length;
-
-			for (Piece piece : blackPieces) {
-				for(Piece enemyPiece : whitePieces) {
-					if(MGameUtility.distance(board, enemyPiece, enemyPiece.getX(), enemyPiece.getY(), piece.getX(), piece.getY(), false) == 1){
-						count++;
-					}
-				}
-			}
-
-			return count / blackPieces.length;
-		
-		
+		return t4[0] / ownPieces.size();	
 	}
 	
 	//#11 % of enemy pieces attacked
 	
 	public static double PercentThreat_Enemy() {
-		
-		double count = 0;
-		
-		if(whitesTurn) {
-			for (Piece piece : whitePieces) {
-				for(Piece enemyPiece : blackPieces) {
-					if(MGameUtility.distance(board, piece, piece.getX(), piece.getY(), enemyPiece.getX(), enemyPiece.getY(), false) == 1){
-						count++;
-					}
-				}
-			}
-
-			return count / whitePieces.length;
-		}
-		else {
-			for (Piece piece : blackPieces) {
-				for(Piece enemyPiece : whitePieces) {
-					if(MGameUtility.distance(board, piece, piece.getX(), piece.getY(), enemyPiece.getX(), enemyPiece.getY(), false) == 1){
-						count++;
-					}
-				}
-			}
-
-			return count / blackPieces.length;
-		}
-		
+		return t4[1] / enemyPieces.size();		
 	}
 	
-	//#12 
+	//#12 Degree of which the threats are answered, e.g. knight threatens bishop, count++, pawn protects bishop,  count-- count stays the same
+	//e.g. return amount of all unanswered threats
 	
-	public static double AmountOfPieces() {
-		return ownPieces.size();
+	public static double TradeEfficiency() {
+		return t4[2];
 	}
 	
-
 	
 	//#13 no of adjacent empty squares
 	
 	public static double OpenSquareCount() {
+		/*
 		int count = 0;
 		
 		int x = 0;
@@ -450,7 +431,7 @@ public class PositionFeature {
 			}
 		}
 		
-		
+		*/
 		/*
 		while(board[x][y] == null && x < 7) {
 			while(board[x][y] != null && x < 7) {	
@@ -478,7 +459,7 @@ public class PositionFeature {
 			}
 		*/
 			
-		return count+1;
+		return 1;//count+1;
 			
 	}
 	
@@ -498,13 +479,13 @@ public class PositionFeature {
 		
 	}
 	
-	//#15 maximum squares available for a piece
+	//#15 maximum legal squares available for a piece
 	
 	public static double MostSquaresAvailableForPiece() {
 		return t[0];
 	}
 	
-	//#16 maximum defenses for a piece
+	//#16 amount of defending pieces for the most defended piece
 	
 	public static double MostDefensesForPiece() {
 		double defenses = 0;
@@ -512,13 +493,14 @@ public class PositionFeature {
 		
 		for (Piece p : ownPieces) {
 			for(Piece q : ownPieces) {
-				if(MGameUtility.distance(board, q, q.getX(), q.getY(), p.getX(), p.getY(), false) == 1) {
+				if(MGameUtility.distance(board, q, q.getX(), q.getY(), p.getX(), p.getY(), false) == -1) {
 					defenses++;
 				}
 			}
 			if(defenses > maxDefenses) {
 				maxDefenses = defenses;
 			}
+			defenses = 0;
 		}
 		return maxDefenses;
 		
@@ -567,13 +549,11 @@ public class PositionFeature {
 	
 	public static double MoveProgressionBranching() {
 		return t2[1];
-		
-		
 	}
 	
-	//#24 progression visible branches(PruningMethod, move) = amount of branches in the defending tree
+	//#24 amount of defending loops in the tree
 	
-	public static int CountProgressionVisibleBranches() {
+	public static double CountProgressionVisibleBranches() {
 		return t2[2];
 	}
 	
@@ -591,70 +571,149 @@ public class PositionFeature {
 	
 
 	
-	public static int getFirstDefender(ArrayList<Piece> pieces,int init,int gid) {
-
+	
+	public static ArrayList<Integer> getAllDefenders(int pieceGid) {
+		ArrayList<Integer> L = new ArrayList<Integer>();
+		ArrayList<Piece> pieces = MGameUtility.ReturnAllPieces(board, whitesTurn);
 		
 		for(int j = 0; j<pieces.size(); j++) {
 			
-			
-			
-			if(		pieces.get(j).getGid() != gid &&
-					MGameUtility.distance(board, pieces.get(j), pieces.get(j).getX(), pieces.get(j).getY(),
-					MGameUtility.GetByGid(pieces, gid).getX(), MGameUtility.GetByGid(pieces, gid).getY(), false) == -1) {
-				
-				System.out.println(pieces.get(j).getName()+pieces.get(j).getGid()+" defends "+
-					MGameUtility.GetByGid(pieces, gid).getName()+
-					MGameUtility.GetByGid(pieces, gid).getGid());
-				
-				if(pieces.get(j).getGid() == init) {
-					continue;
-				}
-				
-				
-				pieces.get(j).getGid();
+			if(MGameUtility.distance(board, pieces.get(j), pieces.get(j).getX(), pieces.get(j).getY(),
+			   MGameUtility.GetByGid(pieces, pieceGid).getX(), MGameUtility.GetByGid(pieces, pieceGid).getY(), false) == -1) {
+				L.add(pieces.get(j).getGid());
 			}
 
 		}
-		return -1; //not found
+		return L;
 		
 	}
 
-	public static int DefenseTree(ArrayList<Piece> pieces,int initialGid,int defenderTarget) {
+	/*
+	 * Recursive function for computing "defense tree", where node n (=Piece p) has child node m, if m has distance of 1 to n
+	 * 
+	 * using DTree(), we compute the depth of the tree(22),
+	 * sum of all branches across all pieces (23)
+	 * amount of loops(24)
+	 * sum of all steps taken when evaluating DTree() for all own pieces multiplied by sum of branches = complexity (25)
+	 * ratio of complexity between ownPieces and enemyPieces (26)
+	 */
+	
+	public static int DTree(int i) {
+		ArrayList<Integer> defenders = getAllDefenders(i);
+		line.add(i);
+		branching += defenders.size();
+		
+		int max = 0;
+		
+		if(defenders.size() == 0) {
+			return 1;
+		}
 
-//		System.out.println(initialIndex+" "+defenderTarget);
-//		System.out.println("defender target "+defenderTarget);
-//		System.out.println("defender "+getFirstDefender(pieces,initialGid,defenderTarget));
-//		System.out.println("init "+initialGid);
-//		System.out.println("");
-		
-		
-		int defender = getFirstDefender(pieces,initialGid,defenderTarget);
-		
-		
-		if(defender != -1 && defender != initialGid) {
-			if() {
-				return DefenseTree(pieces,initialGid,defender) + 1;
+		for(int j : defenders) {
+			if(!line.contains(j)) {
+				complexity++;
+				max = Math.max(max, DTree(j));
+				if(i == init) {
+					line.clear();
+					line.add(i);
+				}
 			}
 			else {
-				initialGid = defender;
-				defender = getFirstDefender(pieces,initialGid,defenderTarget) + 1;
-				return DefenseTree(pieces,initialGid,defender) + 1;
-				
+				loops++;
 			}
-			
-		}
-		else if(defender == initialGid) {
-			
-		}
-		else {
-			return 0;
-		}
 
-
-
+		}
 		
+		return max + 1;
 		
 	}
+	
+	/* DTree(0)
+	 * defenders = [1,5,7,9];
+	 * line = [0]
+	 * max = 0; 
+	 * size = 4 != 0
+	 * loop1: max = math.max(0,DTree(1) = 1), max = 1
+	 * loop5: max = math.max(1,DTree(5) = 2), max = 2
+	 * loop7: max = math.max(2,DTree(7) = 2), max = 2
+	 * loop9: max = math.max(2,DTree(9) = 3), max = 3
+	 * return 4;
+	 * 
+	 * 
+	 * DTree(1)
+	 * defenders = [];
+	 * line = [0,1];
+	 * max = 0;
+	 * size == 0, return 1
+	 * 
+	 * DTree(5)
+	 * defenders = [2,3,4];
+	 * line = [0,5]
+	 * max = 0;
+	 * size == 3 != 0
+	 * loop2: max = math.max(0,DTree(2) = 1), max = 1
+	 * loop3: max = math.max(1,DTree(3) = 1), max = 1
+	 * loop4: max = math.max(1,DTree(4) = 1), max = 1
+	 * return 2;
+	 * 
+	 * 
+	 * DTree(2)
+	 * defenders = [];
+	 * line = [0,2]
+	 * max = 0;
+	 * size == 0, return 1
+	 *
+	 * DTree(3)
+	 * defenders = [];
+	 * line = [0,3]
+	 * max = 0;
+	 * size == 0, return 1
+	 * 
+	 * DTree(4)
+	 * defenders = [];
+	 * line = [0,4]
+	 * max = 0;
+	 * size == 0, return 1
+	 * 
+	 * DTree(7)
+	 * defenders = [1]
+	 * line = [0,7]
+	 * max = 0
+	 * size = 1 != 0
+	 * loop1: max = math.max(0,DTree(1) = 1), max = 1
+	 * return 2
+	 * 
+	 * DTree(9)
+	 * defenders = [11,2,3]
+	 * line = [0,9]
+	 * max = 0
+	 * size = 3 != 0
+	 * loop11: max = math.max(0,DTree(11) = 2), max = 2
+	 * loop2: max = math.max(2,DTree(2) = 1), max = 2
+	 * loop3: max = math.max(2,DTree(3) = 1), max = 2
+	 * return 3;
+	 * 
+	 * DTree(11)
+	 * defenders = [4,9,6]
+	 * line = [0,9,11]
+	 * max = 0
+	 * size = 3 != 0
+	 * 4 not in [0,9,11], loop4: max = math.max(0,DTree(4) = 1), max = 1
+	 * 9 found in [0,9,11], continue;
+	 * 6 not in [0,9,11], loop6: max = math.max(1,DTree(6) = 1), max = 1
+	 * return 2;
+	 * 
+	 * DTree(6)
+	 * defenders = [11,0]
+	 * line = [0,9,11,6]
+	 * max = 0
+	 * size = 2 != 0
+	 * 11 found in [0,9,11,6], continue;
+	 * 0 found in [0,9,11,6], continue;
+	 * return 1;
+	 * 
+	 */
+	
 	
 }
 

@@ -447,6 +447,48 @@ public class RuleSet {
 	}
 
 
+	public static void setCastling(String s) {
+		
+		if(s.equals("-")) {
+			bKingMoved = true;
+			wKingMoved = true;
+		}
+		else if(s.equals("KQ")) {
+			bKingMoved = true;
+		}
+		else if(s.equals("kq")) {
+			wKingMoved = true;
+		}
+		else if(s.equals("Kkq")) {
+			rooksMoved[2] = 1;
+		}
+		else if(s.equals("Qkq")) {
+			rooksMoved[3] = 1;
+		}
+		else if(s.equals("KQk")) {
+			rooksMoved[0] = 1;
+		}
+		else if(s.equals("KQq")) {
+			rooksMoved[1] = 1;
+		}
+		else if(s.equals("Qq")) {
+			rooksMoved[1] = 1;
+			rooksMoved[3] = 1;
+		}
+		else if(s.equals("Kk")) {
+			rooksMoved[0] = 1;
+			rooksMoved[2] = 1;
+		}
+		else if(s.equals("Qk")) {
+			rooksMoved[3] = 1;
+			rooksMoved[0] = 1;
+		}
+		else if(s.equals("Kq")) {
+			rooksMoved[2] = 1;
+			rooksMoved[1] = 1;
+		}
+		
+	}
 
 	public static int[] ReturnKingAndRookPositions(Piece[][] board, boolean turn) {
 		
@@ -516,7 +558,7 @@ public class RuleSet {
 		//find kings moves
 		for(int i = 0; i<8; i++) {
 			for(int j = 0; j<8; j++) {
-				if(MGameUtility.distance(board, board[kingX][kingY], kingX, kingY, i, j,false) == 1) {	
+				if(MGameUtility.distance(board, board[kingX][kingY], kingX, kingY, i, j,false) == 1 && (i != kingX  || j != kingY)) {	
 					System.out.println("available for king: "+i+", "+j);
 					kingsMoves.add(new int[] {i,j});
 				}
@@ -586,6 +628,9 @@ public class RuleSet {
 		//if this variable reaches 0 after initializing it with kingsMoves size, there are no legal moves for the king
 		int availableSquares = 0;
 		
+		//models threat
+		int threat = 0;
+		
 		//return own pieces
 		ArrayList<Piece> ownPieces = MGameUtility.ReturnAllPieces(board, turn);
 		//store opponent kings possible moves in here
@@ -608,7 +653,9 @@ public class RuleSet {
 				
 				if(p.getX() == is[0] && p.getY() == is[1]) {
 					for(Piece q : ownPieces) {
-						if(MGameUtility.distance(board, q, q.getX(), q.getY(), p.getX(), p.getY(), false) == 1) {
+						threat = MGameUtility.distance(board, q, q.getX(), q.getY(), p.getX(), p.getY(), false);
+						//piece at kings area, is defended and cannot be captured
+						if(threat == 1) {
 							availableSquares--;
 							break;
 						}
@@ -616,7 +663,10 @@ public class RuleSet {
 					continue;
 				}
 				
-				if(MGameUtility.distance(board, p, p.getX(), p.getY(), is[0], is[1], false) == 1) {
+				threat = MGameUtility.distance(board, p, p.getX(), p.getY(), is[0], is[1], false);
+				
+				//either enemy piece can move to kings square is[n] || pawn threatens the square(cannot move to it, though)
+				if(threat == 1 || threat == -2) {
 					
 					availableSquares--;
 					System.out.println("sq:"+availableSquares);

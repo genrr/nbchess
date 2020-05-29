@@ -1,6 +1,6 @@
 package main;
 
-import java.util.ArrayList;
+
 import java.util.Random;
 
 public class MSystem {
@@ -16,7 +16,7 @@ public class MSystem {
 	
 	/* RootSystemCall() / low level system function
 	 * 
-	 * Handles low-level representation and optimization
+	 * Handles (low-level representation and) optimization
 	 * 
 	 * 
 	 */
@@ -25,47 +25,25 @@ public class MSystem {
 		
 	}
 	
-	
-	
-	/*
-	 * Main function in the program logic:
-	 * 
-	 * receives data from Engine(board)
-	 * queries current filtered state from GameStateFunction()
-	 * calls generate() on GameLogic and then receives the move to be played
-	 *
-	 * 
-	 */
-	
-	public static void MainFunction(Piece[][] board,int turn, boolean white) {
 		
-	}
-	
-	
-	/* 
-	 * Main system function #2
-	 * 
-	 * 
-	 * handles current objectives
-	 * 
-	 * and ValueFunctions
-	 * 
-	 * records histogram of previous moves
-	 * 
-	 */
-	
-	public static void GameStateFunction() {
-		
-	}
 
 	
 	/*METRICS:
 	 * 
 	 * d = Piece Objects in a matrix
 	 * v = Piece relative values, computed by RelPV(Piece p)
-	 * h = 
-	 * r = 
-	 * z = 
+	 * r = Relative values in r[i][j] add(subtract if different color) the value v[i][j] (-=  
+	 * h = degree of which random square is a valid square * r[i][j] * v[i][j]
+	 * z = 16 largest height values
+	 * 
+	 */
+	
+	/*
+	 * [pieces]
+	 * 
+	 * [2][1][0]
+	 * 
+	 * [][][]
 	 * 
 	 */
 
@@ -75,7 +53,12 @@ public class MSystem {
 		
 		for (int i = 0; i < 8; i++) {
 			for (int j = 0; j < 8; j++) {
-				relativeValues[i][j] = RelPV(board[i][j]);
+				if(board[i][j] != null) {
+					relativeValues[i][j] = RelPV(board[i][j]);
+				}
+				else {
+					relativeValues[i][j] = 0;
+				}
 			}
 		}
 		
@@ -84,11 +67,8 @@ public class MSystem {
 		for (int i = 0; i < 8; i++) {
 			for (int j = 0; j < 8; j++) {
 				if(board[i][j] != null) {
-					
-					
 					for (int m = 0; m < 8; m++) {
 						for (int n = 0; n < 8; n++) {
-							
 							if(board[m][n] != null) {
 								if(MGameUtility.distance(board, board[i][j], i, j, m, n, false) == 1) {
 									if(board[i][j].getColor() != board[m][n].getColor()) {
@@ -120,6 +100,9 @@ public class MSystem {
 						targetX = r.nextInt(8);
 						targetY = r.nextInt(8);
 						counter++;
+						if(counter > 63) {
+							break;
+						}
 					}
 					heightValues[i][j] = relationValues[i][j] * relativeValues[i][j] * (1.0/counter) * 64;
 				}
@@ -287,11 +270,6 @@ public class MSystem {
 		}
 	
 		
-	public static double[][] ComputeDifferences(ArrayList<double[]> features) {
-		
-		
-		
-	}
 		
 
 }
