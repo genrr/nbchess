@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.BlockingQueue;
 
 public class GameSystem {
 
@@ -13,14 +14,16 @@ public class GameSystem {
 
 
 
-	public static Piece[][][] optimize(Piece[][] board,boolean white, double[] evaluation, ComplexSystem csys, Objectives O, Pipeline pipeline) {
+	public static Piece[][][] generateLines(Piece[][] board,boolean white, double[] evaluation, ComplexSystem csys, Objectives o, BlockingQueue<Message> queue) {
 	
+		int maxHeuristics = 5;
 		c = csys;
 		ArrayList<Integer> actionList = new ArrayList<Integer>();
 		ArrayList<int[]> coeffList = new ArrayList<int[]>();
 		Piece[][][] posStack = new Piece[GameLogic.LINES_AMOUNT][][];
 		
 		int[] eValues = new int[26];
+		int[] indexList = new int[maxHeuristics];
 
 		
 		for (int i = 0; i < evaluation.length; i++) {
@@ -42,37 +45,25 @@ public class GameSystem {
 		}
 		
 
+		int h = 0;
 		
-		Arrays.sort(eValues);
+		//[1,4,3,1,5,2,2,5]
+		//max = 5, indexList = [4,7,1,2,5]
 		
-		for (int i = 0; i < eValues.length; i++) {
-			if(eValues[i] != 1) {
-				int[] temp = actionMapping(i,(int)Math.signum(evaluation[i]),eValues[i]);
-				int[] temp2 = coeffMapping(eValues[i]);
-				
-				for(int k= 0; k<temp2[0]; k++) {
-					actionList.add(temp[0]);
-				}
-				
-				for(int k= 0; k<temp2[1]; k++) {
-					actionList.add(temp[1]);
-				}
-				
-				for(int k= 0; k<temp2[2]; k++) {
-					actionList.add(temp[2]);
-				}
-
-				//TODO: merge duplicates
-
+		for (int max = 5; max > 0; max--) {
+			for (int i = 0; i < 26; i++) {
+				if(eValues[i] == max) {
+					if(h < indexList.length) {
+						indexList[h] = i;
+						h++;				}
+					}
 			}
+
 			
 		}
 		
-		Arrays.sort(actionList.toArray());
-		
-		
 		for(int j = 0; j<GameLogic.LINES_AMOUNT; j++) {
-			posStack[j] = fillPosition(board,white,evaluation,actionList,c,O,pipeline);
+			posStack[j] = fillPosition(board,white,evaluation,indexList,o,queue);
 		}
 		
 		
@@ -133,20 +124,26 @@ public class GameSystem {
 	}
 	
 	
-	private static Piece[][] fillPosition(Piece[][] pos0, boolean white, double[] diff, ArrayList<Integer> actions, ComplexSystem c, Objectives o, Pipeline pipeline) {
-		Piece[][] pos;
+	private static Piece[][] fillPosition(Piece[][] pos0, boolean white, double[] eval, int[] evalList, Objectives o, BlockingQueue<Message> queue) {
+		Piece[][] pos = null;
+		Piece[][] pos2 = null;
 		Piece[][][] posList = new Piece[3][][];
 		ArrayList<Piece> l1 = MGameUtility.ReturnAllPieces(pos0, white);
 		ArrayList<Piece> l2 = MGameUtility.ReturnAllPieces(pos0, !white);
 		
+		int heur = evalList[0];
+		int dir = (int) Math.signum(eval[0]);
 		
 	    double[] qualityCoeff = new double[] {16.0,16.0,16.0,16.0};
 	    double percentOfPieces = 0.2;
 	    int genTries = 64;
 	    int posOptimization = 1;
+	    int maxTries = 64;
 	    int passes;
 	    int passTries;
+	    int k0 = 4;
 	    double temp;
+		int closenessTld = 7;		
 	    int d = GameLogic.DIST_THRESHOLD;
 	    
 	    while(genTries > 0){
@@ -154,7 +151,7 @@ public class GameSystem {
 	        
 	        //generate until pos passes valuecontrol
 	        do{
-	            pos = MGameUtility.generatePos(pos0,l1,l2,diff,o,posOptimization);
+	            pos = MGameUtility.generatePos(pos0,l1,l2,k0,eval,o,posOptimization);
 	            qualityCoeff[0] -= 0.1;
 	            qualityCoeff[1] -= 0.1;
 	            qualityCoeff[2] -= 0.1;
@@ -165,39 +162,21 @@ public class GameSystem {
 	        }
 	        while(!ValueFunction.valuesCheck(pos,white,qualityCoeff));
 	        
-	        
-	        if (MGameUtility.posDist(pos0,pos) < d){
-	                //12x passes of b10 <=> actions contains 12x of b10
-	                //passTries = 20;
-	                
-	                for(int i = 0; i<actions.size(); i++){
-	                    //check current action(character) element at random location
-	                    if (!MGameUtility.checkCharacter(pos,actions.get(i))){
-	                        //move pieces according to pattern: b10 at pos[i]
-	                        if(!ValueFunction.valuesCheck(pos,white,qualityCoeff)){
-	                            qualityCoeff[0] -= 0.1;
-	                            qualityCoeff[1] -= 0.1;
-	                            qualityCoeff[2] -= 0.1;
-	                            qualityCoeff[3] -= 0.1;
-
-	                            
-	                            continue;
-	                        }
-	                    }
-	                    //passTries--;
-	                }
-	                if(passes <= 12/5){
-	                    posList[0] = pos; //-> B1
-	                }
-	                continue;
-
-	                
+	        for(int i = 0; i<maxTries; i++) {
+		        if(dir == -1) {
+			        if(GameLogic.MeasureHeuristic(pos, white, heur) > GameLogic.MeasureHeuristic(pos0, white, heur)) {
+			        	break;
+			        }
+		        }
+		        else if(dir == 1) {
+		        	 if(GameLogic.MeasureHeuristic(pos, white, heur) < GameLogic.MeasureHeuristic(pos0, white, heur)) {
+				        break;
+				     }
+		        }
 	        }
-	        else{
-	            genTries--;
-	        }
+
 	        
-	            //generation failed, adjust: add dist and optimization level in generation routine
+	        //generation failed, adjust: add dist and optimization level in generation routine
 	        if(genTries == 0){
 	            d += 5;
 	            posOptimization++;
@@ -209,36 +188,41 @@ public class GameSystem {
 	    
 	    //ota huomioon loput heuristiikat
 	    
-		for(int i = 1; i < 3; i++) {
-		    Piece[][] pos2;
+		for(int i = 1; i < evalList.length; i++) {
 		   //6x passes of b9:
 		    
 		    passTries = 20;
 		    
-		    while(passes > 6/5 && passTries > 0){
+		    while(passTries > 0){
+		    	temp = Math.signum(eval[i]);
 		        //check b9 at random location
-		        if (!MGameUtility.checkCharacter()){
-		            //"move rnd.k location pieces according to pattern: b9"
-		            passes--;
-		            continue;
+		    	pos2 = pos;
+		        while ((temp == 1 && GameLogic.MeasureHeuristic(pos0, white, evalList[i]) < GameLogic.MeasureHeuristic(pos2, white, evalList[i]) ||
+		        		temp == -1 && GameLogic.MeasureHeuristic(pos0, white, evalList[i]) > GameLogic.MeasureHeuristic(pos2, white, evalList[i])) &&
+		        		passTries > 0){
+		        	pos2 = MGameUtility.nearRandomSearch(pos2,1,3);
+					passTries--;
 		        }
-		        passTries--;
+		        
 		    }
-		    if(passes <= 6/5){
-		        posList[i] = pos2; //-> Bn
-		    }
+
+		    posList[i] = pos2; //-> Bn
+
 
 		}
 		
 		//generate positions D1,..Dh which are of equal distance from all B1-B5
-		
-		int closenessTld = 7;
-		
+
 		//special method, which returns closest positions ranked by specific criteria, sorted by closeness to all b1,...
-		Piece[][][] DPosList = MGameUtility.generateNear(posList[0], posList[1], posList[2],5);
+		Piece[][][] DPosList = MGameUtility.generateOptimizedSolutions(posList,closenessTld);
 		
 		//push others to line buffer
-		pipeline.push(Arrays.copyOfRange(DPosList, 1, 4));
+		try {
+			queue.put(new Message(Arrays.copyOfRange(DPosList, 1, 4),"lines"));
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		
 		
 		return DPosList[0];

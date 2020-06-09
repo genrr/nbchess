@@ -3,6 +3,8 @@ package main;
 import java.util.ArrayList;
 import java.util.Random;
 
+import javafx.application.Platform;
+
 
 public class MGameUtility {
 	
@@ -91,7 +93,8 @@ public static int distance(Piece[][] b, Piece piece, int startX, int startY, int
 		distanceMatrix(piece.getColor());
 	}
 	
-	//System.out.println("dist: "+dist);
+	//System.out.println("dist for "+piece.getName()+"from ("+startX+ ","+ startY +
+	//		") -> ("+targetX+","+targetY+") = "+dist);
 	
 	//defending own piece, return -1 (only 1-distance moves)
 	if(dist == 1 && b[targetX][targetY] != null && b[targetX][targetY].getColor() == piece.getColor()){
@@ -156,14 +159,27 @@ private static int PawnMoveDist(Piece piece, int X, int Y,int tX,int tY, boolean
 		
 
 		if(capture) {
+			//use (1,7)
 			return mm[1+(tX-X)][7+(tY-Y)];
 		}
 		else {
-			if(X != 1 && mm[0+(tX-X)][7+(tY-Y)] != 0) {
-				mm[0+(tX-X)][7+(tY-Y)]++;
-			}
 			mm[1][7] = 1;
 			
+			//handle cases, where possibly target dist not incremented (X == 1, forward square empty, moving in a straight line, target square not 
+			//reachable only diagonal moves after first forward move
+			if(mm[0+(tX-X)][7+(tY-Y)] != 0 && tX - X != 1) {
+				
+				if(X != 1 || board[X+1][Y] != null) {
+					mm[0+(tX-X)][7+(tY-Y)]++;
+				}
+				else {
+					if(X == 1 && Math.abs(tY-Y) == Math.abs(tX-X) - 1 && tX-X != 1) {
+						mm[0+(tX-X)][7+(tY-Y)]++;
+					}
+				}	
+			}
+			
+			//use (0,7)
 			return mm[0+(tX-X)][7+(tY-Y)];
 		}
 	}
@@ -185,14 +201,58 @@ private static int PawnMoveDist(Piece piece, int X, int Y,int tX,int tY, boolean
 					  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 					  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}};
 		
+		/*
+		 *int[][] mm={{0,7,6,6,6,6,6,6,6,6,6,6,6,7,0},
+					  {0,0,6,5,5,5,5,5,5,5,5,5,6,0,0},
+				      {0,0,0,5,4,4,4,4,4,4,4,5,0,0,0},
+					  {0,0,0,0,4,3,3,3,3,3,4,0,0,0,0},
+					  {0,0,0,0,0,3,2,2,2,3,0,0,0,0,0},
+					  {0,0,0,0,0,0,2,1,2,0,0,0,0,0,0},
+					  {0,0,0,0,0,0,0,1,0,0,0,0,0,0,0},
+					  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}};
+		 * 
+		 * 
+		 * 
+		 */
+		
+		/*
+		 * pawn is allowed to move diagonally initially, start at (6,7)
+		 */
 		if(capture) {
 			return mm[6+(tX-X)][7+(tY-Y)];
 		}
-		else {		
-			if(X != 6 && mm[7+(tX-X)][7+(tY-Y)] != 0) {
-				mm[7+(tX-X)][7+(tY-Y)]++;
-			}
+		else {
+			/* pawn moves initially hor/ver
+			 * (6,7) dist is 1
+			 * 
+			 */
 			mm[6][7] = 1;
+			/*
+			 * requested target square is theoretically reachable &&
+			 * not moving one square, possible to increase target dist
+			 */
+			if(mm[7+(tX-X)][7+(tY-Y)] != 0 && X - tX != 1) {
+				/*
+				 * either not in start pos or something in the way
+				 * -> increase target dist
+				 */
+				if(X != 6 || board[X-1][Y] != null) {
+					mm[7+(tX-X)][7+(tY-Y)]++;
+				}
+				else {
+					/* dont increment unless:
+					 * pawn is on the start pos && y change equals x change - 1(target square is reachable in only diagonal moves after 1 forward move)
+					 * -> increment dist to target
+					 */
+					if(X == 6 && Math.abs(tY-Y) == Math.abs(tX-X) - 1 && tX - X != -1) {
+						mm[7+(tX-X)][7+(tY-Y)]++;
+		
+						
+					}
+				}
+				
+
+			}
 			return mm[7+(tX-X)][7+(tY-Y)];
 		}
 	}
@@ -640,7 +700,7 @@ public static boolean CheckInBetween(int X, int Y, int tX, int tY){
 	
 	
 	
-	public static ArrayList<int[]> getAllMoves(Piece[][] board, boolean white) {
+	public static ArrayList<int[]> getAllMoves(Piece[][] board, boolean white, int[] info) {
 		
 		ArrayList<int[]> list = new ArrayList<int[]>();
 		ArrayList<Piece> pieces = ReturnAllPieces(board, white);
@@ -649,21 +709,32 @@ public static boolean CheckInBetween(int X, int Y, int tX, int tY){
 	
 			for (int i = 0; i < 8; i++) {
 				for (int j = 0; j < 8; j++) {
-					if(distance(board, p, p.getX(), p.getY(), i, j, false) == 1) {
-						list.add(new int[] {p.getX(),p.getY(),i,j});
+					if(p.getX() == i && p.getY() == j) {
+						continue;
 					}
+					
+					int t = RuleSet.validate(board, white, p.getX(), p.getY(), i, j, info);
+					
+					if(!(t == 1 || t == 2)) {
+						list.add(new int[] {p.getX(),p.getY(),i,j,t});
+						System.out.println(list.get(list.size()-1)[0]+ " "+
+								list.get(list.size()-1)[1]+ " "+
+								list.get(list.size()-1)[2]+ " "+
+								list.get(list.size()-1)[3]+ " "+list.get(list.size()-1)[4]);
+					}
+
 				}
 			}
 		}
 		
-		
+
 		
 		return list;
 	}
 	
 	
 	
-	public static Piece[][] generatePos(Piece[][] board, ArrayList<Piece> pieces1, ArrayList<Piece> pieces2, double[] diff, Objectives O, int optimizationLevel){
+	public static Piece[][] generatePos(Piece[][] board, ArrayList<Piece> pieces1, ArrayList<Piece> pieces2, int k0, double[] diff, Objectives O, int optimizationLevel){
 		
 		Random r = new Random();
 		int k = 5;
@@ -801,10 +872,17 @@ public static boolean CheckInBetween(int X, int Y, int tX, int tY){
 	
 	public static Piece[][] cloneArray(Piece[][] p){
 		Piece[][] clone = new Piece[8][8];
+		Piece q;
 		
 		for(int i = 0; i < 8; i++) {
 			for(int j = 0; j < 8; j++) {
-				clone[i][j] = p[i][j];
+				q = p[i][j];
+				if(q != null) {
+					clone[i][j] = new Piece(q.getName(),q.getId(),q.getGid(),q.getColor(),q.getX(),q.getY());
+				}
+				else {
+					clone[i][j] = null;
+				}
 			}
 		}
 		
@@ -830,6 +908,18 @@ public static boolean CheckInBetween(int X, int Y, int tX, int tY){
 			
 		}
 		return p;
+	}
+
+
+	public static Piece[][] nearRandomSearch(Piece[][] pos2, int i, int j) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+
+	public static Piece[][][] generateOptimizedSolutions(Piece[][][] posList, int closenessTld) {
+		// TODO Auto-generated method stub
+		return null;
 	}
 	
 }

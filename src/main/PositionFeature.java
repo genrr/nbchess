@@ -10,7 +10,6 @@ public class PositionFeature {
 	private static Piece[][] board = null;
 	private static ArrayList<Piece> ownPieces = new ArrayList<Piece>();
 	private static ArrayList<Piece> enemyPieces = new ArrayList<Piece>();
-	private static int turnNumber;
 	private static boolean whitesTurn;
 	private static int branching = 0;
 	
@@ -46,11 +45,9 @@ public class PositionFeature {
 	 */
 	
 
-	public static void initFeatures(Piece[][] b, boolean currentTurn, int turnN) {
+	public PositionFeature(Piece[][] b, boolean currentTurn) {
 		board = b;
-		turnNumber = turnN;
 		whitesTurn = currentTurn;
-
 		enemyPieces = MGameUtility.ReturnAllPieces(board, !currentTurn);
 		ownPieces = MGameUtility.ReturnAllPieces(board, currentTurn);
 		
@@ -339,8 +336,8 @@ public class PositionFeature {
 		int minDistance = 100;
 		int pieceDist = 0;
 		
-		int kingX = RuleSet.ReturnKingAndRookPositions(board,whitesTurn)[0];
-		int kingY = RuleSet.ReturnKingAndRookPositions(board,whitesTurn)[1];
+		int kingX =0;
+		int kingY =0;
 		
 		
 		for(Piece p : enemyPieces) {
@@ -361,8 +358,8 @@ public class PositionFeature {
 		int minDistance = 100;
 		int pieceDist = 0;
 		
-		int kingX = RuleSet.ReturnKingAndRookPositions(board,whitesTurn)[2];
-		int kingY = RuleSet.ReturnKingAndRookPositions(board,whitesTurn)[3];
+		int kingX = 0;
+		int kingY = 0;
 
 		
 		for(Piece p : ownPieces) {
@@ -541,23 +538,23 @@ public class PositionFeature {
 	
 	//#22 move progression length = longest chain of defenses
 	
-	public static double MoveProgressionLength() {
+	public static double LongestChainOfDefenses() {
 		return t2[0];
 	}
 
-	//#23 move progression branching = 
+	//#23 move progression branching
 	
-	public static double MoveProgressionBranching() {
+	public static double ChainBranching() {
 		return t2[1];
 	}
 	
 	//#24 amount of defending loops in the tree
 	
-	public static double CountProgressionVisibleBranches() {
+	public static double CountDefenseLoops() {
 		return t2[2];
 	}
 	
-	//#25 complexity of moves ~ amount of computation needed to evaluate progression
+	//#25 complexity of position ~ amount of computation needed to evaluate progression
 	
 	public static double PositionComplexity() {
 		return t2[3] * t2[1];

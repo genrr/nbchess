@@ -84,11 +84,11 @@ public class GameLogic {
 	 * 
 	 */
 	
-	public static int[] Generate(Pipeline p, Piece[][] board, int turnNumber, boolean white) {
+	public static int[] Generate(Piece[][] board, int turnNumber, boolean white, int[] info) {
 		
 		
 		/*//measure
-		MeasurePosition(board,white,turnNumber);
+		MeasureAllHeuristics(board,white,turnNumber);
 		
 		//evaluate
 		double[] evalValues = new double[26];
@@ -118,7 +118,7 @@ public class GameLogic {
 			diff[i-1] = (features.get(turnNumber)[i-1] - localSP[i-1]);
 		}
 		
-		localSPn = GameSystem.optimize(diff,c,positionsSPn);
+		localSPn = GameSystem.generateLines(diff,c,positionsSPn);
 		
 		//rank localSPn, get LINES_TOP amount of lines := localSPn, store rest in pipeline p, 
 		
@@ -148,7 +148,7 @@ public class GameLogic {
 */
 
 		
-		ArrayList<int[]> t = MGameUtility.getAllMoves(board, white);
+		ArrayList<int[]> t = MGameUtility.getAllMoves(board, white, info);
 		
 		Random r = new Random();
 		
@@ -196,41 +196,105 @@ public class GameLogic {
 	 * measure position
 	 */
 	
-	private static void MeasurePosition(Piece[][] board, boolean white, int turnNumber) {
+	private static void MeasureAllHeuristics(Piece[][] board, boolean white, int turnNumber) {
 	
 		
-		PositionFeature.initFeatures(board, white, turnNumber);
+		PositionFeature p = new PositionFeature(board, white);
 
 		
-		heuristics[0] = PositionFeature.RelM();
-		heuristics[1] = PositionFeature.RelMAVG();
-		heuristics[2] = PositionFeature.RelMV();
-		heuristics[3] = PositionFeature.RelPVAVG();
-		heuristics[4] = PositionFeature.BestPiece();
-		heuristics[5] = PositionFeature.KingSquaresSafetyMetric();
-		heuristics[6] = PositionFeature.RelDistanceFromDefault();
-		heuristics[7] = PositionFeature.MinDistKing_Enemy();
-		heuristics[8] = PositionFeature.MinDistKing_Own();
-		heuristics[9] = PositionFeature.PercentThreat_Own();
-		heuristics[10] = PositionFeature.PercentThreat_Own();
-		heuristics[11] = PositionFeature.TradeEfficiency();
-		heuristics[12] = PositionFeature.OpenSquareCount();
-		heuristics[13] = PositionFeature.PercentDefended();
-		heuristics[14] = PositionFeature.MostSquaresAvailableForPiece();
-		heuristics[15] = PositionFeature.MostDefensesForPiece();
-		heuristics[16] = PositionFeature.MostFreeSquaresForPiece();
-		heuristics[17] = PositionFeature.MostSquaresSafeForPiece();
-		heuristics[18] = PositionFeature.CountAllAvailableSquares();
-		heuristics[19] = PositionFeature.CountAllFreeSquares();
-		heuristics[20] = PositionFeature.CountAllSafeSquares();
-		heuristics[21] = PositionFeature.MoveProgressionLength();
-		heuristics[22] = PositionFeature.MoveProgressionBranching();
-		heuristics[23] = PositionFeature.CountProgressionVisibleBranches();
-		heuristics[24] = PositionFeature.PositionComplexity();
-		heuristics[25] = PositionFeature.ComplexityRatio();
+		heuristics[0] = p.RelM();
+		heuristics[1] = p.RelMAVG();
+		heuristics[2] = p.RelMV();
+		heuristics[3] = p.RelPVAVG();
+		heuristics[4] = p.BestPiece();
+		//heuristics[5] = p.();
+		heuristics[6] = p.DistanceFromDefaultRelativeToEnemy();
+		heuristics[7] = p.MinDistKing_Enemy();
+		heuristics[8] = p.MinDistKing_Own();
+		heuristics[9] = p.PercentThreat_Own();
+		heuristics[10] = p.PercentThreat_Enemy();
+		heuristics[11] = p.TradeEfficiency();
+		heuristics[12] = p.OpenSquareCount();
+		heuristics[13] = p.PercentDefended();
+		heuristics[14] = p.MostSquaresAvailableForPiece();
+		heuristics[15] = p.MostDefensesForPiece();
+		heuristics[16] = p.MostFreeSquaresForPiece();
+		heuristics[17] = p.MostSquaresSafeForPiece();
+		heuristics[18] = p.CountAllAvailableSquares();
+		heuristics[19] = p.CountAllFreeSquares();
+		heuristics[20] = p.CountAllSafeSquares();
+		heuristics[21] = p.LongestChainOfDefenses();
+		heuristics[22] = p.ChainBranching();
+		heuristics[23] = p.CountDefenseLoops();
+		heuristics[24] = p.PositionComplexity();
+		heuristics[25] = p.ComplexityRatio();
 		
 		System.out.println(Arrays.toString(heuristics));
 	}
+	
+	
+	public static double MeasureHeuristic(Piece[][] board, boolean white, int h) {
+		
+		PositionFeature p = new PositionFeature(board, white);
+		
+		switch(h) {
+		case 1:
+			return p.RelM();
+		case 2:
+			return p.RelMAVG();
+		case 3:
+			return p.RelMV();
+		case 4:
+			return p.RelPVAVG();
+		case 5:
+			return p.BestPiece();
+		//case 6:
+			
+		case 7:
+			return p.DistanceFromDefaultRelativeToEnemy();
+		case 8:
+			return p.MinDistKing_Enemy();
+		case 9:
+			return p.MinDistKing_Own();
+		case 10:
+			return p.PercentThreat_Own();
+		case 11:
+			return p.PercentThreat_Enemy();
+		case 12:
+			return p.TradeEfficiency();
+		case 13://TODO:
+			return p.OpenSquareCount();
+		case 14:
+			return p.PercentDefended();
+		case 15:
+			return p.MostSquaresAvailableForPiece();
+		case 16:
+			return p.MostDefensesForPiece();
+		case 17:
+			return p.MostFreeSquaresForPiece();
+		case 18:
+			return p.MostSquaresSafeForPiece();
+		case 19:
+			return p.CountAllAvailableSquares();
+		case 20:
+			return p.CountAllFreeSquares();
+		case 21:
+			return p.CountAllSafeSquares();
+		case 22:
+			return p.LongestChainOfDefenses();
+		case 23:
+			return p.ChainBranching();
+		case 24:
+			return p.CountDefenseLoops();
+		case 25:
+			return p.PositionComplexity();
+		case 26:
+			return p.ComplexityRatio();
+		}	
+		return 0;
+	}
+	
+	
 
 	private static double calculateDiff(ArrayList<int[]> candidateMoves) {
 		
@@ -261,40 +325,7 @@ public class GameLogic {
 	 * <li>
 	 *
 	 */
-	
-	private static ArrayList<int[]> run(Piece[][] board, int turnNumber, boolean turnOfWhite) {
 
-		int[] progressions = GameSystem.generate();
-		
-		for(int returnBlockCount = 0; returnBlockCount < MAIN_ITERATIONS; returnBlockCount++) {
-			GameSystem.ReEvaluate(progressions);
-			GameSystem.mine();
-		}
-		
-		Pipeline.dataCollection(GameSystem.returnOptimalSolutions());
-		ArrayList<int[]> moveList = Pipeline.getData(); //get sorted moves
-		Pipeline.flush();
-		Pipeline.reset();
-		
-		Resources.memorize();
-		Resources.patternize();
-		
-		EvaluationFunction.writeAll(); //eval. functions tuned
-		Relation.writeAll(); //rel. importances tuned
-		PositionFeature.writeImportances(); //feature importances tuned
-		
-
-		if(GameSystem.offerDraw()) {
-			drawOffered = true; 
-		}
-		
-		
-		
-		return moveList;
-	
-		
-	}
-	
 	
 	
 	
@@ -309,15 +340,7 @@ public class GameLogic {
 	}
 	
 		
-		
-		
-		
-		
-		
-		
-		
-		
-	
+
 	
 	
 	
@@ -332,45 +355,6 @@ public class GameLogic {
 		return a*Math.sin(b*value + c);
 		
 		
-		
-	}
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	private static void computeRealtimeFunctions(Piece[][] board, boolean white, int turnNumber, int[][][][][] stateVector) {
-		
-		PositionFeature.initFeatures(board, white, turnNumber);
-		
-		//RealtimeFunction.computeVsTime(PositionFeature.AllAvailableSquares(false),turnNumber);
-		
-		//WRITE states
-		PositionFeature.writeAll();
-		
-		//READ states, compute importance
-		/*
-		 * for realtime value functions: "correlation" result determines "importance" of feature in question
-		 * 
-		 * for evaluation value functions: "correlation" result determines, whether to shift eval. func. parameters and in which way
-		 * 
-		 * for relation value functions: "correlation" resultt determines 
-		 */
-		
-		
-		ParameterizedValueFunction.compute(turnNumber);
-		
-		EvaluationValueFunction.compute(turnNumber);
-		
-		RelationValueFunction.compute(turnNumber);
 		
 	}
 	

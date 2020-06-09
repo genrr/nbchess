@@ -2,29 +2,55 @@ package main;
 
 import java.util.Arrays;
 import java.util.concurrent.BlockingQueue;
+import java.util.stream.IntStream;
+
+import javafx.application.Platform;
+import java.util.ArrayList;
 
 /**
- * High-level engine abstraction class. Runs in a new Thread, receives InterruptedException
- *  when asked to generate new move.
+ * High-level engine abstraction class, runs in a separate thread.
  */
 
 public class Engine extends Thread {
 
 	Piece[][] data;
 	int turnNumber = 0;
-	boolean turn = false;
+	int[] info;
 	private static boolean alreadyStarted = false;
-	Pipeline storage;
 	
-	int[] move = null;
+	//store all value function y:s for the whole game
+	ArrayList<double[]> valStorage; 
+	/* e.g. get value3 history: iterate through whole arraylist with double[i] i = 2, get double[]
+	 * containing value3:s for the whole game 
+	 * [][][]
+	 * [][][]
+	 * [][][]
+	 * [][][]
+	 * [][][]
+	 */
 	
+	//Store all data and its development during the whole game of undetermined length
+	ArrayList<double[]> heurStorage; //(h23,turnNo) heuristic development
+	ArrayList<double[][]>  evalStorage; //(h19,params,turnNo) eval parameter development
+	ArrayList<double[][][]>  relStorage; //(h1,h16,z,turnNo) relation development
+	//(h21,turnNo,value) heuristic development compared to value development
+	ArrayList<double[][]> heurValStorage; 
+	 //(h5,params,turnNo,value) eval parameter development compared to value development
+	ArrayList<double[][][]> evalValStorage; 
+	//(h4,h9,z,turnNo,value) relation development compared to value development
+	ArrayList<double[][][][]> relValStorage;  
+	
+	//store Objectives, searched game tree, Lines
+	int[][] objStorage;
+	Piece[][][] searchTree;
+	Piece[][][] lines;
 	
 	private BlockingQueue<Message> queue;
-	private DataPipeline dataPipe;
+	private boolean color;
 	
-	public Engine(BlockingQueue<Message> q, DataPipeline p) {
+	public Engine(BlockingQueue<Message> q, boolean color) {
 		this.queue = q;
-		this.dataPipe = p;
+		this.color = color;
 	}
 	
 
@@ -43,39 +69,50 @@ public class Engine extends Thread {
 //			alreadyStarted = true;
 //		}
 		
-		try {
-			System.out.println("##");
-			Message element;
-			String status;
-			
-			do {
-				if(dataPipe.getStatus().equals("sent")) {
-					System.out.println("taking pos "+queue.isEmpty());
+
+		Message element;
+		
+		do {
+			try {
+				element = queue.peek();
+				
+				if(element.getStatus().equals("request")) {
 					element = queue.take();
-					System.out.println("queue size "+queue.size());
-					if(dataPipe.getStatus().equals("exit")) {
-						break;
-					}
 					
 					data = element.getBoardData();
-					status = element.getStatus();
-					System.out.println("Received board "+ data + "at turn "+status);
+					turnNumber = element.getTurnNumber();
+					info = element.getPiecesInfo();
 					
-					System.out.println(Arrays.toString(GameLogic.Generate(storage,data,turnNumber,turn)));
-		
-					Message move = new Message(null,GameLogic.Generate(storage,data,turnNumber,turn),"move");
-					System.out.println("queue size "+queue.size());
+	
+					Message move = new Message(null,GameLogic.Generate(data,turnNumber,color, info),
+							turnNumber,new int[] {-1,-1},"ready");
+					
 					queue.put(move);
-					dataPipe.setStatus("response");
+					Platform.runLater(new Runnable() {
+						public void run() {
+							Board.moveReady.set(true);
+						}
+					});
 					
-					System.out.println("this is not called for some reason! move: "+queue.peek().getMove());
 				}
-			} while (true);
+				else if(element.getStatus().equals("lines")) {
+					lines = element.getLines();
+				}
+				else if(element.getStatus().equals("exit")) {
+					break;
+				}
+			}
+			catch(InterruptedException e) {
+				e.printStackTrace();
+			}
+			catch(NullPointerException n) {
+				continue;
+			}
 
-		}
-		catch(InterruptedException e) {
-			e.printStackTrace();
-		}
+				
+		} while (true);
+
+
 
 		
 		

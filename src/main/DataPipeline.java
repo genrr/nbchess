@@ -3,12 +3,16 @@ package main;
 import java.util.Arrays;
 import java.util.concurrent.BlockingQueue;
 
+import javafx.application.Platform;
+
+
 public class DataPipeline implements Runnable {
 	
 	private BlockingQueue<Message> queue;
 	private Piece[][] pos;
 	private int[] move;
 	private String status;
+	private int turnNo;
 	
 	
 	/*
@@ -43,13 +47,15 @@ public class DataPipeline implements Runnable {
 		while(!status.equals("exit")) {
 			//System.out.println("size "+queue.size());
 			//System.out.println("queue "+" "+(queue.peek()).getBoardData());
+			//System.out.println("queue size "+queue.size());
+			
 			
 			if(status.equals("request")) {
 				System.out.println("pos "+pos);
-				Message msg = new Message(pos,null,status);			
+				Message msg = new Message(pos,null,turnNo,status);			
 				try {
 					queue.put(msg);
-					status = "sent";
+					setStatus("sent");
 				}
 				catch(InterruptedException e) {
 					e.printStackTrace();
@@ -63,20 +69,18 @@ public class DataPipeline implements Runnable {
 					System.out.println("move = "+queue.peek().getMove());
 					move = queue.take().getMove();
 				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 				status = "ready";
-				Board.moveReady.set(true);
+				Platform.runLater(new Runnable() {
+					public void run() {
+						Board.moveReady.set(true);
+					}
+				});
+				
+				
 			}
 			
-			
-			
-		}
-		try {
-			queue.put(new Message(null,null,"exit"));
-		} catch (InterruptedException e) {
-			e.printStackTrace();
 		}
 
 	}
@@ -92,6 +96,10 @@ public class DataPipeline implements Runnable {
 	public void setStatus(String status) {
 		System.out.println(status);
 		this.status = status;
+	}
+	
+	public void setTurnNo(int i) {
+		this.turnNo = i;
 	}
 	
 	public String getStatus() {

@@ -10,14 +10,11 @@ public class RuleSet {
 	private static Piece[][] board = null;
 	private static Piece[][] tempGrid = new Piece[8][8];
 	private static int[] pattern;
-	private static boolean bKingMoved = false;
-	private static boolean wKingMoved = false;
-	private static int[] rooksMoved = {0,0,0,0};
-	private static boolean wcastlingk = false;
-	private static boolean wcastlingq = false;
-	private static boolean bcastlingk = false;
-	private static boolean bcastlingq = false;
-	private static Piece enPassantPiece = null;
+	private static int[] pieceMovesInfo = new int[7];
+	private static boolean wcastlingq;
+	private static boolean bcastlingq;
+	private static boolean wcastlingk;
+	private static boolean bcastlingk;
 
 
 	/**
@@ -44,14 +41,18 @@ public class RuleSet {
 	 * 11 en passant
 	 */
 	
-	public static int validate(Piece[][] rgrid, boolean white, int startX, int startY, int targetX, int targetY) {
+	public static int validate(Piece[][] rgrid, boolean white, int startX, int startY,
+			int targetX, int targetY, int[] s) {
+		
+		System.out.println("validate: "+startX+","+startY+" -> "+targetX+","+targetY);
+		//System.out.println("en passant: "+s[6]+" "+s[7]);
+		
 		board = rgrid;
 		int multX = 0;
 		int multY = 0;
-		ReturnKingAndRookPositions(board,white);
 		MGameUtility.UpdateCoords(board);
 		int specialMove;
-	
+		pieceMovesInfo = s;
 		
 		if(targetX < startX && targetY < startY){
 			multX = -1;
@@ -87,13 +88,10 @@ public class RuleSet {
 		//test special moves(pawn two-move, en passant,castling)
 		specialMove = specialMoves(board[startX][startY],board[startX][startY].getName(),pattern,startX,targetX,targetY);
 		
-		//if en passant move
-		if(specialMove == 1 || specialMove == -1){
-			Board.setEnPassantSquare(new int[] {-1,-1});
-			return 11;		
-		}
+		//System.out.println("special "+specialMove);
+
 		//if castling
-		else if(specialMove == 3) {
+		if(specialMove == 3) {
 			if(bcastlingk) {
 				return 7;
 			}
@@ -114,7 +112,7 @@ public class RuleSet {
 
 	
 		//test for move legality for given piece, while not castling/en passant
-		if(MGameUtility.distance(board, board[startX][startY], startX, startY, targetX, targetY,false) != 1 && (specialMove != 1 || specialMove != -1)) {
+		if(MGameUtility.distance(board, board[startX][startY], startX, startY, targetX, targetY,false) != 1 && !(specialMove == 1 || specialMove == -1)) {
 			return 1;
 		}	
 		
@@ -130,10 +128,24 @@ public class RuleSet {
 
 		//test board to test the effects of the new move
 		Piece[][] testBoard = MGameUtility.cloneArray(board);
-		testBoard[startX][startY].setCoords(targetX,targetY);
-		testBoard[targetX][targetY] = testBoard[startX][startY];
-		testBoard[startX][startY] = null;
-	
+		if(specialMove == 1) {
+			testBoard[startX][startY].setCoords(targetX,targetY);
+			testBoard[targetX][targetY] = testBoard[startX][startY];
+			testBoard[pieceMovesInfo[6]+1][pieceMovesInfo[7]] = null;
+			testBoard[startX][startY] = null;
+		}
+		else if(specialMove == -1) {
+			testBoard[startX][startY].setCoords(targetX,targetY);
+			testBoard[targetX][targetY] = testBoard[startX][startY];
+			testBoard[pieceMovesInfo[6]-1][pieceMovesInfo[7]] = null;
+			testBoard[startX][startY] = null;
+		}
+		else {
+			testBoard[startX][startY].setCoords(targetX,targetY);
+			testBoard[targetX][targetY] = testBoard[startX][startY];
+			testBoard[startX][startY] = null;
+		}
+		
 		ArrayList<Piece> opponentsAttackingPieces = CheckingPieces(white, testBoard);
 		ArrayList<Piece> ownAttackingPieces = CheckingPieces(!white, testBoard);
 		
@@ -159,10 +171,7 @@ public class RuleSet {
 		else if(ownAttackingPieces.size() != 0) {
 			return 5;
 		}
-		
-		//return original positions for both kings
-		ReturnKingAndRookPositions(board,white);
-		MGameUtility.UpdateCoords(board);
+
 
 		//test pawn promotion
 		if(specialMove == 5) {
@@ -172,15 +181,17 @@ public class RuleSet {
 		
 		//dont remove en passant opportunity if pawn moved by two -> legal move
 		//test for case where en passant square existed and pawn didn't move by two, en passant was not used, remove square
-		if(specialMove == 2 || specialMove == -2) {
-			return 0;
+		else if(specialMove == 2 ){
+			return 13;
 		}
-		else {
-			if(Board.getEnPassantSquare()[0] != -1) {
-				Board.setEnPassantSquare(new int[] {-1,-1});
-			}
+		else if(specialMove == -2) {
+			return 14;
 		}
-
+		//if en passant move
+		else if(specialMove == 1 || specialMove == -1){
+			return 11;		
+		}
+		
 		
 		return 0;
 		
@@ -208,7 +219,6 @@ public class RuleSet {
 	
 
 	private static int specialMoves(Piece p, String name, int[] pattern, int y, int tX, int tY){
-		System.out.println(pattern[0]+" "+pattern[1]);
 		
 		//moving two squares at the start + en passant
 		if(name.equals("pawn_w")){
@@ -216,7 +226,6 @@ public class RuleSet {
 			//pawn is situated at (6,x) and moves two squares up, set en passant possibility for next move
 			if(pattern[1] == 0 && pattern[0] == -2){
 				if(y == 6) {
-					Board.setEnPassantSquare(new int[] {tX+1,tY});
 					return 2;						
 				}
 				else {
@@ -228,7 +237,9 @@ public class RuleSet {
 			//then check if target square is goes forward x-- to same column as the enpassant piece
 			//if en passant square exists, return 1 (legal move)
 			//else, return 4 (not valid move)
-			if(p.getY() != Board.getEnPassantSquare()[1] && tX == Board.getEnPassantSquare()[0] && tY == Board.getEnPassantSquare()[1]) {
+
+			if(p.getX() == pieceMovesInfo[6]+1 && (p.getY() == pieceMovesInfo[7]-1 || p.getY() == pieceMovesInfo[7]+1)
+					&& tX == pieceMovesInfo[6] && tY == pieceMovesInfo[7]) {
 				return 1;
 			}
 			//promotion
@@ -247,7 +258,6 @@ public class RuleSet {
 			//pawn is situated at (1,x) and moves two squares down, set en passant possibility for next move
 			if(pattern[1] == 0 && pattern[0] == 2){
 				if(y == 1) {
-					Board.setEnPassantSquare(new int[] {tX-1,tY});
 					return -2;
 				}
 				else {
@@ -257,7 +267,8 @@ public class RuleSet {
 			}
 			//en passant theoretically possible, check if current pawn is on right X row for en passant and
 			//if target square is (x--,y--) OR (x--,y++)
-			if(p.getY() != Board.getEnPassantSquare()[1] && tX == Board.getEnPassantSquare()[0] && tY == Board.getEnPassantSquare()[1]) {
+			if(p.getX() == pieceMovesInfo[6]-1 && (p.getY() == pieceMovesInfo[7]-1 || p.getY() == pieceMovesInfo[7]+1)
+					 && tX == pieceMovesInfo[6] && tY == pieceMovesInfo[7]) {
 				return -1;
 			}
 			//promotion
@@ -385,11 +396,11 @@ public class RuleSet {
 					System.out.println(tempX+", "+tempY+" can be blocked by "+p.getName());
 					
 					
-					
+					/*
 					if(p.getName().contains("pawn") && p.getY() == tempY) {
 						return false;
 					}
-					
+					*/
 					
 					return true;
 				}
@@ -408,7 +419,7 @@ public class RuleSet {
 		if(pattern[1] == -2) {
 			if(whitesTurn) {
 				if(board[7][1] == null && board[7][2] == null && board[7][3] == null) {
-					if(rooksMoved[2] == 0 && !wKingMoved && !lineIsUnderAttack(board,7,0,7,4,whitesTurn,false,true)) {
+					if(pieceMovesInfo[2] == 0 && pieceMovesInfo[4] == 0 && !lineIsUnderAttack(board,7,0,7,4,whitesTurn,false,true)) {
 						wcastlingq = true;
 						return true;
 					}
@@ -417,7 +428,8 @@ public class RuleSet {
 			else {
 				//System.out.println(rooksMoved[0]+" "+!bKingMoved+" "+!lineIsUnderAttack(board,0,0,0,4,whitesTurn,false,true));
 				if(board[0][1] == null && board[0][2] == null && board[0][3] == null) {
-					if(rooksMoved[0] == 0 && !bKingMoved && !lineIsUnderAttack(board,0,0,0,4,whitesTurn,false,true)) {
+					
+					if(pieceMovesInfo[0] == 0 && pieceMovesInfo[5] == 0 && !lineIsUnderAttack(board,0,0,0,4,whitesTurn,false,true)) {
 						bcastlingq = true;
 						return true;
 					}
@@ -428,7 +440,9 @@ public class RuleSet {
 		else if(pattern[1] == 2) {
 			if(whitesTurn) {
 				if(board[7][5] == null && board[7][6] == null) {
-					if(rooksMoved[3] == 0 && !wKingMoved && !lineIsUnderAttack(board,7,4,7,7,whitesTurn,false,true)) {
+					System.out.println("checking");
+					System.out.println((pieceMovesInfo[3] == 0)+" "+(pieceMovesInfo[4] == 0));
+					if(pieceMovesInfo[3] == 0 && pieceMovesInfo[4] == 0 && !lineIsUnderAttack(board,7,4,7,7,whitesTurn,false,true)) {		
 						wcastlingk = true;
 						return true;
 					}
@@ -436,7 +450,7 @@ public class RuleSet {
 			}
 			else {
 				if(board[0][5] == null && board[0][6] == null) {
-					if(rooksMoved[1] == 0 && !bKingMoved && !lineIsUnderAttack(board,0,4,0,7,whitesTurn,false,true)) {
+					if(pieceMovesInfo[1] == 0 && pieceMovesInfo[5] == 0 && !lineIsUnderAttack(board,0,4,0,7,whitesTurn,false,true)) {
 						bcastlingk = true;
 						return true;
 					}
@@ -447,107 +461,9 @@ public class RuleSet {
 	}
 
 
-	public static void setCastling(String s) {
-		
-		if(s.equals("-")) {
-			bKingMoved = true;
-			wKingMoved = true;
-		}
-		else if(s.equals("KQ")) {
-			bKingMoved = true;
-		}
-		else if(s.equals("kq")) {
-			wKingMoved = true;
-		}
-		else if(s.equals("Kkq")) {
-			rooksMoved[2] = 1;
-		}
-		else if(s.equals("Qkq")) {
-			rooksMoved[3] = 1;
-		}
-		else if(s.equals("KQk")) {
-			rooksMoved[0] = 1;
-		}
-		else if(s.equals("KQq")) {
-			rooksMoved[1] = 1;
-		}
-		else if(s.equals("Qq")) {
-			rooksMoved[1] = 1;
-			rooksMoved[3] = 1;
-		}
-		else if(s.equals("Kk")) {
-			rooksMoved[0] = 1;
-			rooksMoved[2] = 1;
-		}
-		else if(s.equals("Qk")) {
-			rooksMoved[3] = 1;
-			rooksMoved[0] = 1;
-		}
-		else if(s.equals("Kq")) {
-			rooksMoved[2] = 1;
-			rooksMoved[1] = 1;
-		}
-		
-	}
 
-	public static int[] ReturnKingAndRookPositions(Piece[][] board, boolean turn) {
-		
-		int[] t = {0,0,0,0};
-		
-		for(int j = 0; j < 8; j++) {
-			for(int i = 0; i < 8; i++) {
-				
-				if(board[i][j] == null) {
-					continue;
-				}
-				else {
-					if(board[i][j].getName().contains("king")) {
-						if(board[i][j].getColor() == turn) {
-							t[0] = i;
-							t[1] = j;				
-						}
-						else {
-							t[2] = i;
-							t[3] = j;				
-						}
-						
-						if(board[i][j].getColor() && (i != 7 || j != 4)) {
-							wKingMoved = true;
-						}
-						if(!board[i][j].getColor() && (i != 0 || j != 4)) {
-							bKingMoved = true;
-						}
-						
-					}
-				
-					
-					if(board[i][j].getId() == 11) {
-						if(i != 0 || j != 0) {
-							rooksMoved[0] = 1;
-						}
-					}
-					else if(board[i][j].getId() == 18) {
-						if(i != 0 || j != 7) {
-							rooksMoved[1] = 1;
-						}
-					}
-					else if(board[i][j].getId() == 19){
-						if(i != 7 || j != 0) {
-							rooksMoved[2] = 1;
-						}
-					}
-					else if(board[i][j].getId() == 26){
-						if(i != 7 || j != 7) {
-							rooksMoved[3] = 1;
-						}
-					}
-				}
-			}
-		}	
-		System.out.println("own king: "+t[0]+", "+t[1]+" enemy king: "+t[2]+", "+t[3]);
-		
-		return t;
-	}
+
+	
 	
 	/*
 	 * Returns kings legal squares.
@@ -559,7 +475,7 @@ public class RuleSet {
 		for(int i = 0; i<8; i++) {
 			for(int j = 0; j<8; j++) {
 				if(MGameUtility.distance(board, board[kingX][kingY], kingX, kingY, i, j,false) == 1 && (i != kingX  || j != kingY)) {	
-					System.out.println("available for king: "+i+", "+j);
+					//System.out.println("available for king: "+i+", "+j);
 					kingsMoves.add(new int[] {i,j});
 				}
 				
@@ -579,23 +495,36 @@ public class RuleSet {
 	private static ArrayList<Piece> CheckingPieces(boolean white, Piece[][] board){
 		
 		int index = 0;
-	
-		int[] t = ReturnKingAndRookPositions(board,white);
+
 		MGameUtility.UpdateCoords(board);
 		ArrayList<Piece> opponentsPieces = MGameUtility.ReturnAllPieces(board, !white); //opponents pieces
+		
 		ArrayList<Piece> checkingPieces = new ArrayList<Piece>();
 		
 		//iterate the l (array of enemy pieces) which have distance of ONE to our own King!
 		//return checkingPieces
 		
-		int kingX,kingY;
+		int kingX = 0,kingY = 0;
 		
-		kingX = t[0];
-		kingY = t[1];
+		for(int i = 0; i<8; i++) {
+			for(int j = 0; j<8; j++) {
+				if(board[i][j] != null && board[i][j].getName().contains("king")) {
+					
+					if(board[i][j].getColor() == white) {
+						kingX = i;
+						kingY = j;				
+					}
+
+					
+				}
+				
+			}
+		}
+		
 		
 		while(index < opponentsPieces.size())
 		{
-			//System.out.println(MGameUtility.distance(board, l.get(index), l.get(index).getX(), l.get(index).getY(), kingX, kingY, false));
+
 			
 			if(MGameUtility.distance(board, opponentsPieces.get(index), opponentsPieces.get(index).getX(), 
 					opponentsPieces.get(index).getY(), kingX, kingY, false) == 1) {
@@ -615,15 +544,23 @@ public class RuleSet {
 	
 	private static boolean checkmateTest(boolean turn, Piece[][] board){
 		ArrayList<int[]> kingsMoves;
-		System.out.println("checkmate testing started at turn of "+turn);
+		//System.out.println("checkmate testing started at turn of "+turn);
 		
-		int kingX,kingY;
 		ArrayList<Piece> c;
-		int[] t = ReturnKingAndRookPositions(board, turn);
 		
-		//opponents kings (x,y)
-		kingX = t[2];
-		kingY = t[3];
+		//opponents king x,y
+		int kingX = 0,kingY = 0;
+		
+		for(int i = 0; i<8; i++) {
+			for(int j = 0; j<8; j++) {
+				if(board[i][j] != null && board[i][j].getName().contains("king")) {
+					if(board[i][j].getColor() == !turn) {
+						kingX = i;
+						kingY = j;				
+					}
+				}
+			}
+		}
 		
 		//if this variable reaches 0 after initializing it with kingsMoves size, there are no legal moves for the king
 		int availableSquares = 0;
@@ -639,7 +576,7 @@ public class RuleSet {
 		
 		//now initializing availableSquares with the size of the array
 		availableSquares = kingsMoves.size();
-		System.out.println("squares: "+availableSquares);
+		//System.out.println("squares: "+availableSquares);
 		
 		/*
 		 * in the outer loop, go through kings moves
@@ -648,8 +585,8 @@ public class RuleSet {
 		 */
 		for (int[] is : kingsMoves) {
 			for(Piece p : ownPieces) {
-				System.out.println("testing: "+p.getName()+" at ("+p.getX()+","+p.getY()+
-						") for distance 1 to kings square ("+is[0]+","+is[1]+")");
+				//System.out.println("testing: "+p.getName()+" at ("+p.getX()+","+p.getY()+
+				//		") for distance 1 to kings square ("+is[0]+","+is[1]+")");
 				
 				if(p.getX() == is[0] && p.getY() == is[1]) {
 					for(Piece q : ownPieces) {
@@ -669,7 +606,7 @@ public class RuleSet {
 				if(threat == 1 || threat == -2) {
 					
 					availableSquares--;
-					System.out.println("sq:"+availableSquares);
+					//System.out.println("sq:"+availableSquares);
 					break;
 					
 				}
@@ -687,7 +624,7 @@ public class RuleSet {
 		//checking pieces give pieces that give check to current player(US), we want pieces that we're giving check OURSELVES, so hard.. 
 		c = CheckingPieces(!turn, board);
 		//System.out.println("squares: "+availableSquares);
-		System.out.println("checking pieces: "+c.size());
+		//System.out.println("checking pieces: "+c.size());
 		//System.out.println("piece0: ("+c.get(0).getX()+","+c.get(0).getY()+")");
 		
 		
