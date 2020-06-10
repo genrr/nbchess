@@ -5,16 +5,12 @@ import java.util.Arrays;
 
 
 public class PositionFeature {
-
 	
 	private static Piece[][] board = null;
 	private static ArrayList<Piece> ownPieces = new ArrayList<Piece>();
 	private static ArrayList<Piece> enemyPieces = new ArrayList<Piece>();
 	private static boolean whitesTurn;
 	private static int branching = 0;
-	
-	//private static double f10;
-	//private static double f11;
 	private static ArrayList<int[]> allLegalSquares = new ArrayList<int[]>();
 	private static ArrayList<int[]> allFreeSquares = new ArrayList<int[]>();
 	private static ArrayList<int[]> allSafeSquares = new ArrayList<int[]>();
@@ -52,14 +48,20 @@ public class PositionFeature {
 		ownPieces = MGameUtility.ReturnAllPieces(board, currentTurn);
 		
 		
-		t = new double[] {2,1,1};//HelperFunction1();
+		t = HelperFunction1();
 		HelperFunction2();
-		t2 = new double[] {1,1,1,1};//HelperFunction3(ownPieces);
-		t3 = new double[] {1,1,1,1};//HelperFunction3(enemyPieces);
+		t2 = HelperFunction3(ownPieces);
+		t3 = HelperFunction3(enemyPieces);
 		t4 = HelperFunction4();
 		
 	}
 	
+	public static void flushArrays() {
+		allLegalSquares.clear();
+		allFreeSquares.clear();
+		allSafeSquares.clear();
+		threatenedByEnemy.clear();
+	}
 	
 	private static double[] HelperFunction1() {
 		double squares = 0;
@@ -77,8 +79,10 @@ public class PositionFeature {
 				for(int j = 0; j<8; j++) {
 					
 					if(MGameUtility.distance(board, p, p.getX(), p.getY(), i, j, false) == 1) {
+						System.out.println("squares:"+squares);
 						squares++;
 						allLegalSquares.add(new int[] {i,j});
+						System.out.println("size"+allLegalSquares.size());
 						
 						if(board[i][j] == null) {
 							freeSquares++;
@@ -139,13 +143,16 @@ public class PositionFeature {
 		for(int i = 0; i<pieces.size(); i++) {
 			//System.out.println("calling on "+pieces.get(i).getName());
 			
-			init = pieces.get(i).getGid();
+			//init = pieces.get(i).getGid();
 			depth = DTree(pieces.get(i).getGid());
 			System.out.println("depth of tree starting on "+i+": "+depth);
 			
 			if(depth > maxDepth) {
 				maxDepth = depth; 
 			}
+			
+			System.out.println("branching after recursive: "+branching+" maxbranches: "+maxBranches);
+			
 			if(branching > maxBranches) {
 				maxBranches = branching;
 			}
@@ -191,7 +198,7 @@ public class PositionFeature {
 		}
 		
 		
-		
+
 		return new double[] {underThreat,attacked,tradeCount};
 		
 	}
@@ -575,7 +582,8 @@ public class PositionFeature {
 		
 		for(int j = 0; j<pieces.size(); j++) {
 			
-			if(MGameUtility.distance(board, pieces.get(j), pieces.get(j).getX(), pieces.get(j).getY(),
+			if(!MGameUtility.GetByGid(pieces, pieceGid).getName().equals("temp") &&
+			   MGameUtility.distance(board, pieces.get(j), pieces.get(j).getX(), pieces.get(j).getY(),
 			   MGameUtility.GetByGid(pieces, pieceGid).getX(), MGameUtility.GetByGid(pieces, pieceGid).getY(), false) == -1) {
 				L.add(pieces.get(j).getGid());
 			}
@@ -599,6 +607,7 @@ public class PositionFeature {
 		ArrayList<Integer> defenders = getAllDefenders(i);
 		line.add(i);
 		branching += defenders.size();
+		System.out.println("branching:"+branching);
 		
 		int max = 0;
 		
@@ -609,6 +618,7 @@ public class PositionFeature {
 		for(int j : defenders) {
 			if(!line.contains(j)) {
 				complexity++;
+				System.out.println(max);
 				max = Math.max(max, DTree(j));
 				if(i == init) {
 					line.clear();

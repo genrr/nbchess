@@ -39,12 +39,16 @@ public class RuleSet {
 	 * 9 castling wk
 	 * 10 castling wq
 	 * 11 en passant
+	 * 12 promotion
+	 * 13 white moves pawn by two
+	 * 14 black moves pawn by two
+	 * 
 	 */
 	
 	public static int validate(Piece[][] rgrid, boolean white, int startX, int startY,
 			int targetX, int targetY, int[] s) {
 		
-		System.out.println("validate: "+startX+","+startY+" -> "+targetX+","+targetY);
+		//System.out.println("validate: "+startX+","+startY+" -> "+targetX+","+targetY);
 		//System.out.println("en passant: "+s[6]+" "+s[7]);
 		
 		board = rgrid;
@@ -374,6 +378,23 @@ public class RuleSet {
 		
 		//loop through the "line" from (sx,sy) -> (tx,ty) with (tempX,tempY) being the points in between
 		for(int z = 0; z <= amount-1; z++ ) {
+
+			for(Piece p : allPieces) {
+				
+				System.out.println("X,Y : "+tempX+", "+tempY);
+				
+				if(!p.getName().contains("king") && MGameUtility.distance(grid, p, p.getX(), p.getY(), tempX, tempY, false) == 1) {
+
+					/*
+					if(p.getName().contains("pawn") && p.getY() == tempY) {
+						return false;
+					}
+					*/
+					
+					return true;
+				}
+				
+			}
 			
 			if(tx > sx) {
 				tempX++;
@@ -386,27 +407,7 @@ public class RuleSet {
 			}
 			else if(ty < sy) {
 				tempY--;
-			}	
-			
-			for(Piece p : allPieces) {
-				
-				System.out.println("X,Y : "+tempX+", "+tempY);
-				
-				if(!p.getName().contains("king") && MGameUtility.distance(grid, p, p.getX(), p.getY(), tempX, tempY, false) == 1) {
-					System.out.println(tempX+", "+tempY+" can be blocked by "+p.getName());
-					
-					
-					/*
-					if(p.getName().contains("pawn") && p.getY() == tempY) {
-						return false;
-					}
-					*/
-					
-					return true;
-				}
-				
 			}
-			
 		}
 		
 	return false;
@@ -681,8 +682,8 @@ public class RuleSet {
 		for(int i = 0; i < pos.size(); i++) {
 			for(int j = 0; j < pos.size(); j++) {
 				if(i != j && pos.get(i).equals(pos.get(j))) {
-					System.out.println("match found "+appearances);
-					System.out.println(pos.toString());
+					//System.out.println("match found "+appearances);
+					//System.out.println(pos.toString());
 					appearances++;
 					if(appearances == 3) {
 						System.out.println("three-fold repetition");

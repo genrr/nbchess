@@ -57,17 +57,16 @@ public class Engine extends Thread {
 	public void run() {
 		
 		//run these once at the start 
-//		if(!alreadyStarted) {			
-//			storage = new Pipeline();
-//			storage.start();
-//
-//			GameLogic.InitData();
-//			//GameLogic.InitSP();
-//			//GameLogic.InitObjectives();
-//			//GameLogic.InitCharacters();
-//			//GameLogic.InitIdeals();
-//			alreadyStarted = true;
-//		}
+		if(!alreadyStarted) {			
+
+
+			GameLogic.InitData();
+			//GameLogic.InitSP();
+			//GameLogic.InitObjectives();
+			//GameLogic.InitCharacters();
+			//GameLogic.InitIdeals();
+			alreadyStarted = true;
+		}
 		
 
 		Message element;
@@ -113,7 +112,7 @@ public class Engine extends Thread {
 		} while (true);
 
 
-
+		System.out.println("exiting..");
 		
 		
 		

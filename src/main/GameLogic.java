@@ -7,7 +7,7 @@ import java.util.Random;
 
 public class GameLogic {
 	
-	private static double[] heuristics;
+	private static double[] heuristics = new double[26];;
 	static Objectives o;
 	private static double[][] eval = new double[3][26];
 	
@@ -62,11 +62,11 @@ public class GameLogic {
 	
 	public static void InitData() {
 		Random r = new Random();
-		heuristics = new double[26];
+		
 		double[] initialValues = new double[26];
 		
-		c = new ComplexSystem(RANDOMNESS_SOURCE, RANDOMNESS_LEVEL, FUNCTION_CHOICE);
-		c.start();
+		//c = new ComplexSystem(RANDOMNESS_SOURCE, RANDOMNESS_LEVEL, FUNCTION_CHOICE);
+		//c.start();
 		
 		for(int i = 0; i<26; i++) {
 			initialValues[i] = 6*r.nextDouble()-3;
@@ -74,6 +74,7 @@ public class GameLogic {
 
 		StandardPosition SP = new StandardPosition(initialValues);
 		o = new Objectives();
+		
 	}
 	
 	
@@ -87,9 +88,10 @@ public class GameLogic {
 	public static int[] Generate(Piece[][] board, int turnNumber, boolean white, int[] info) {
 		
 		
-		/*//measure
+		//measure
 		MeasureAllHeuristics(board,white,turnNumber);
 		
+		/*
 		//evaluate
 		double[] evalValues = new double[26];
 		for(int i = 0; i<26; i++) {
@@ -201,33 +203,35 @@ public class GameLogic {
 		
 		PositionFeature p = new PositionFeature(board, white);
 
+		heuristics[0] = PositionFeature.RelM();
+		heuristics[1] = PositionFeature.RelMAVG();
+		heuristics[2] = PositionFeature.RelMV();
+		heuristics[3] = PositionFeature.RelPVAVG();
+		heuristics[4] = PositionFeature.BestPiece();
+		heuristics[5] = 0;
+		heuristics[6] = PositionFeature.DistanceFromDefaultRelativeToEnemy();
+		heuristics[7] = PositionFeature.MinDistKing_Enemy();
+		heuristics[8] = PositionFeature.MinDistKing_Own();
+		heuristics[9] = PositionFeature.PercentThreat_Own();
+		heuristics[10] = PositionFeature.PercentThreat_Enemy();
+		heuristics[11] = PositionFeature.TradeEfficiency();
+		heuristics[12] = PositionFeature.OpenSquareCount();
+		heuristics[13] = PositionFeature.PercentDefended();
+		heuristics[14] = PositionFeature.MostSquaresAvailableForPiece();
+		heuristics[15] = PositionFeature.MostDefensesForPiece();
+		heuristics[16] = PositionFeature.MostFreeSquaresForPiece();
+		heuristics[17] = PositionFeature.MostSquaresSafeForPiece();
+		heuristics[18] = PositionFeature.CountAllAvailableSquares();
+		heuristics[19] = PositionFeature.CountAllFreeSquares();
+		heuristics[20] = PositionFeature.CountAllSafeSquares();
+		heuristics[21] = PositionFeature.LongestChainOfDefenses();
+		heuristics[22] = PositionFeature.ChainBranching();
+		heuristics[23] = PositionFeature.CountDefenseLoops();
+		heuristics[24] = PositionFeature.PositionComplexity();
+		heuristics[25] = PositionFeature.ComplexityRatio();
 		
-		heuristics[0] = p.RelM();
-		heuristics[1] = p.RelMAVG();
-		heuristics[2] = p.RelMV();
-		heuristics[3] = p.RelPVAVG();
-		heuristics[4] = p.BestPiece();
-		//heuristics[5] = p.();
-		heuristics[6] = p.DistanceFromDefaultRelativeToEnemy();
-		heuristics[7] = p.MinDistKing_Enemy();
-		heuristics[8] = p.MinDistKing_Own();
-		heuristics[9] = p.PercentThreat_Own();
-		heuristics[10] = p.PercentThreat_Enemy();
-		heuristics[11] = p.TradeEfficiency();
-		heuristics[12] = p.OpenSquareCount();
-		heuristics[13] = p.PercentDefended();
-		heuristics[14] = p.MostSquaresAvailableForPiece();
-		heuristics[15] = p.MostDefensesForPiece();
-		heuristics[16] = p.MostFreeSquaresForPiece();
-		heuristics[17] = p.MostSquaresSafeForPiece();
-		heuristics[18] = p.CountAllAvailableSquares();
-		heuristics[19] = p.CountAllFreeSquares();
-		heuristics[20] = p.CountAllSafeSquares();
-		heuristics[21] = p.LongestChainOfDefenses();
-		heuristics[22] = p.ChainBranching();
-		heuristics[23] = p.CountDefenseLoops();
-		heuristics[24] = p.PositionComplexity();
-		heuristics[25] = p.ComplexityRatio();
+		PositionFeature.flushArrays();
+		
 		
 		System.out.println(Arrays.toString(heuristics));
 	}
@@ -239,57 +243,57 @@ public class GameLogic {
 		
 		switch(h) {
 		case 1:
-			return p.RelM();
+			return PositionFeature.RelM();
 		case 2:
-			return p.RelMAVG();
+			return PositionFeature.RelMAVG();
 		case 3:
-			return p.RelMV();
+			return PositionFeature.RelMV();
 		case 4:
-			return p.RelPVAVG();
+			return PositionFeature.RelPVAVG();
 		case 5:
-			return p.BestPiece();
+			return PositionFeature.BestPiece();
 		//case 6:
 			
 		case 7:
-			return p.DistanceFromDefaultRelativeToEnemy();
+			return PositionFeature.DistanceFromDefaultRelativeToEnemy();
 		case 8:
-			return p.MinDistKing_Enemy();
+			return PositionFeature.MinDistKing_Enemy();
 		case 9:
-			return p.MinDistKing_Own();
+			return PositionFeature.MinDistKing_Own();
 		case 10:
-			return p.PercentThreat_Own();
+			return PositionFeature.PercentThreat_Own();
 		case 11:
-			return p.PercentThreat_Enemy();
+			return PositionFeature.PercentThreat_Enemy();
 		case 12:
-			return p.TradeEfficiency();
+			return PositionFeature.TradeEfficiency();
 		case 13://TODO:
-			return p.OpenSquareCount();
+			return PositionFeature.OpenSquareCount();
 		case 14:
-			return p.PercentDefended();
+			return PositionFeature.PercentDefended();
 		case 15:
-			return p.MostSquaresAvailableForPiece();
+			return PositionFeature.MostSquaresAvailableForPiece();
 		case 16:
-			return p.MostDefensesForPiece();
+			return PositionFeature.MostDefensesForPiece();
 		case 17:
-			return p.MostFreeSquaresForPiece();
+			return PositionFeature.MostFreeSquaresForPiece();
 		case 18:
-			return p.MostSquaresSafeForPiece();
+			return PositionFeature.MostSquaresSafeForPiece();
 		case 19:
-			return p.CountAllAvailableSquares();
+			return PositionFeature.CountAllAvailableSquares();
 		case 20:
-			return p.CountAllFreeSquares();
+			return PositionFeature.CountAllFreeSquares();
 		case 21:
-			return p.CountAllSafeSquares();
+			return PositionFeature.CountAllSafeSquares();
 		case 22:
-			return p.LongestChainOfDefenses();
+			return PositionFeature.LongestChainOfDefenses();
 		case 23:
-			return p.ChainBranching();
+			return PositionFeature.ChainBranching();
 		case 24:
-			return p.CountDefenseLoops();
+			return PositionFeature.CountDefenseLoops();
 		case 25:
-			return p.PositionComplexity();
+			return PositionFeature.PositionComplexity();
 		case 26:
-			return p.ComplexityRatio();
+			return PositionFeature.ComplexityRatio();
 		}	
 		return 0;
 	}

@@ -590,37 +590,27 @@ private static int QueenMoveDist(int X, int Y,int tX,int tY) {
 
 public static boolean CheckInBetween(int X, int Y, int tX, int tY){
 	
-	
-	
 	//set local variables:
 	
 	int t1; //local variable to hold temporary X value
 	int t2; //local variable to hold temporary Y value
-	int t = Math.max(Math.abs(tX-X),Math.abs(tY-Y)); //Complete movement, absolute value
-	
+	int t = Math.max(Math.abs(tX-X),Math.abs(tY-Y)); //Complete movement, absolute value	
 	t1 = X; //set start temp x as X
 	t2 = Y; //set start temp y as Y
-
-	int i = 0; //init iterator i
-	
+	int i = 0; //init iterator i	
 	int multX = (int) Math.signum(tX-X);
-	int multY = (int) Math.signum(tY-Y);
-	
+	int multY = (int) Math.signum(tY-Y);	
 	
 	//System.out.println("X:"+X+" Y:"+Y+" tX:"+tX+" tY:"+tY+" t: "+t);
 	
-	
 	//iterate t times
-	while(i < t){
-		
-		
+	while(i < t){	
 		//either decrease or increase both temp vars by one, depending on the direction (multX, multY)
 		t1 += multX;
 		t2 += multY;
 		i++;
 		
-		//System.out.println("t1: "+t1+" t2: "+t2);
-		
+		//System.out.println("t1: "+t1+" t2: "+t2);		
 		if(board[X][Y] != null && board[t1][t2] != null){
 			
 			if(board[t1][t2].getColor() != board[X][Y].getColor() && board[t1][t2].getName().contains("king")) {
@@ -643,8 +633,47 @@ public static boolean CheckInBetween(int X, int Y, int tX, int tY){
 		
 	}
 
-	
 	return false;
+
+}
+
+public static ArrayList<int[]> PaintLastMove(Piece[][] board, int X, int Y, int tX, int tY){
+	System.out.println("hi");
+	
+	ArrayList<int[]> l = new ArrayList<>();
+	//set local variables:
+	
+	int t1; //local variable to hold temporary X value
+	int t2; //local variable to hold temporary Y value
+	int t = Math.max(Math.abs(tX-X),Math.abs(tY-Y)); //Complete movement, absolute value	
+	t1 = X; //set start temp x as X
+	t2 = Y; //set start temp y as Y
+	int i = 0; //init iterator i	
+	int multX = (int) Math.signum(tX-X);
+	int multY = (int) Math.signum(tY-Y);	
+	
+	//System.out.println("X:"+X+" Y:"+Y+" tX:"+tX+" tY:"+tY+" t: "+t);
+	
+	if(board[X][Y].getName().contains("knight")) {
+		l.add(new int[] {X,Y});
+		l.add(new int[] {tX,tY});
+		return l;
+	}
+	
+	
+	//iterate t times
+	while(i < t){	
+		//either decrease or increase both temp vars by one, depending on the direction (multX, multY)
+		t1 += multX;
+		t2 += multY;
+		i++;
+		
+		System.out.println("t1: "+t1+" t2: "+t2);		
+		l.add(new int[] {t1,t2});
+		
+	}
+
+	return l;
 
 }
 

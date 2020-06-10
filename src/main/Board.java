@@ -7,12 +7,17 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.DataFormat;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -62,6 +67,7 @@ public class Board extends Application {
 	private static int startY;
 	private static String turnLabelText = "";
 	private static Pane selectedTargetSquare = null;
+	private Pane[][] sqArray = new Pane[8][8];
 
 	private static boolean bKingMoved = false;
 	private static boolean wKingMoved = false;
@@ -301,9 +307,9 @@ public class Board extends Application {
 	}
 
 	private void exitGame() {
-		gameRunning = false; 
-
-		if(mayflower != null) {
+		gameRunning = false;
+		
+		if(mayflower != null && mayflower.isAlive()) {
 			try {
 				queue.put(new Message(null, null, 0, null, "exit"));
 			} catch (InterruptedException e) {
@@ -349,12 +355,15 @@ public class Board extends Application {
 	private void endGame() {
 		if(gameRunning) {
 			if(BotColor) {
-				sb.append("White wins by resignation");
+				sb.append("\nWhite wins by resignation");
+				console.setText(sb.toString());
 			}
 			else {
-				sb.append("Black wins by resignation");
+				sb.append("\nBlack wins by resignation");
+				console.setText(sb.toString());
 			}
 			gameRunning = false;
+			
 			if(mayflower != null) {
 				try {
 					queue.put(new Message(null, null, 0, null, "exit"));
@@ -384,7 +393,7 @@ public class Board extends Application {
 		}
 		else {
 			sb.append("Draw offered by player");
-			if(GameLogic.DrawDecision(board, fullTurns, currentTurn)) {
+			if(GameLogic.DrawDecision(board, fullTurns.get(), currentTurn)) {
 				gameRunning = false;
 				sb.append("draw accepted");
 			}
@@ -405,19 +414,30 @@ public class Board extends Application {
 	// 0	1	2	3	4	5	6
 	// 1	1	1	2	2	3	3
 	
-	private void setTurn(String piece, int y, int tx, int ty) {
+	private void setTurn(String piece, int y, int tx, int ty,int result) {
 		currentTurn = !currentTurn;
 		halfTurns.set(halfTurns.getValue()+1);
 
 		if(halfTurns.get() % 2 == 0 && halfTurns.get() != 0) {		
 			fullTurns.set(fullTurns.get()+1);
-			//sb.append("\n"+fullTurns.get()+". ");
+			sb.append("\n"+fullTurns.get()+". ");
 
 		}
 		
-		
-		sb.append(pieceSymbol(piece,y,tx,ty)+" ");
-
+		if(result == 7 || result == 9) {
+			sb.append("O-O ");
+		}
+		else if(result == 8 || result == 10) {
+			sb.append("O-O-O ");
+		}
+		else if(result == 6) {
+			sb.append("Draw.");
+			gameRunning = false;
+		}
+		else {
+			sb.append(pieceSymbol(piece,y,tx,ty)+(result == 5 ? '+' : "")+" ");
+		}
+			
 		System.out.println("botColor "+BotColor+", current turn "+currentTurn+", movecounter: "+moveCounter+" counter: "+halfTurns+"\n");
 
 
@@ -465,13 +485,14 @@ public class Board extends Application {
 		int i;
 		int j;
 		int i2 = 0;
-		int j2 = 0;	
+		int j2 = 0;
+
 
 
 		for(i = isDefaultBoardRotation ? 0 : 7; i<8 && i > -1; i = isDefaultBoardRotation ? i + 1 : i - 1, i2++) {
 			for(j = isDefaultBoardRotation ? 0 : 7; j<8 && j > -1; j = isDefaultBoardRotation ? j + 1 : j - 1, j2 = (j2+1)%8) {
 
-				Pane square = new Pane();
+				sqArray[i][j] = new Pane();
 				Rectangle canvas = null;
 				ImageView piece = new ImageView();
 
@@ -497,34 +518,69 @@ public class Board extends Application {
 				int temp = j;
 				int temp2 = i;
 
-				square.setId(temp+""+temp2);
-				square.getChildren().add(canvas);
-				square.getChildren().add(piece);
+				sqArray[i][j].setId(temp+""+temp2);
+				sqArray[i][j].getChildren().add(canvas);
+				sqArray[i][j].getChildren().add(piece);
 				
-				
-				
-				square.setOnMouseDragged(e -> {
-					System.out.println("drag started at "+temp+" "+temp2);
-					moving = true;
-					squareSelector(square,temp,temp2);
-					});
-
-				if(square != selectedTargetSquare) {
-					square.setOnMouseReleased(e -> {
-						System.out.println("drag stopped at "+temp+" "+temp2);
-						moving = false;
-						squareSelector(square,temp,temp2);
-						}
-					);
-				}
-				selectedTargetSquare = square;
-				GridPane.setConstraints(square,i2,j2);
-				grid.getChildren().add(square);
-
 
 				if(squareContent(temp,temp2) != null) {
 					piece.setImage(new Image(getClass().getClassLoader().getResource("resources/"+squareContent(temp,temp2)+".png").toExternalForm(),100,100,true,true));
 				}
+				
+				Pane p = sqArray[i][j];
+				
+				//p.setOnMouseDragged(value);
+				//p.setOnMouseDragEntered(value);
+				//p.setOnMouseDragReleased(value);
+				
+				p.setOnMousePressed(e -> p.setMouseTransparent(true));
+				p.setOnMouseReleased(e -> p.setMouseTransparent(false));
+				
+				p.setOnDragDetected(e -> {
+					((Rectangle)(p.getChildren().get(0))).setFill(new Color(0.53, 0.59, 0.57, 1));
+					p.startFullDrag();
+					
+					if(squareContent(temp,temp2) != null) {
+						System.out.println("drag started");
+					}
+					e.consume();
+					});
+				
+
+				
+				p.setOnMouseDragEntered(e -> {
+					Pane n = (Pane)(e.getGestureSource());
+					Image s = ((ImageView) n.getChildren().get(1)).getImage();
+					int a = Integer.parseInt(""+n.getId().charAt(0));
+					int b = Integer.parseInt(""+n.getId().charAt(1));
+					((sqArray[temp2][temp].getChildren().get(0))).setViewOrder(5);
+					((Rectangle)(sqArray[temp2][temp].getChildren().get(0))).setFill(new Color(0.83, 0.59, 0.57, 1));
+					((sqArray[temp2][temp].getChildren().get(1))).setViewOrder(4);
+					//((ImageView)(sqArray[temp2][temp].getChildren().get(1))).setImage(s);
+					((ImageView)(sqArray[a][b].getChildren().get(1))).setImage(null);
+					System.out.println("moving");
+					e.consume();
+				});
+				
+				p.setOnMouseDragReleased(e -> {
+					Pane n = (Pane)(e.getGestureSource());
+					
+					System.out.println("drag dropped "+n.getId());
+					int a = Integer.parseInt(""+n.getId().charAt(0));
+					int b = Integer.parseInt(""+n.getId().charAt(1));
+					
+					moveValidator(a, b, temp, temp2);
+					e.consume();
+				});
+
+				
+		
+				
+				GridPane.setConstraints(sqArray[i][j],i2,j2);
+				grid.getChildren().add(sqArray[i][j]);
+
+
+				
 			}
 		}
 		console.setText(sb.toString());
@@ -662,7 +718,7 @@ public class Board extends Application {
 
 		if(result == 0 || result == 3 || result == 4 || result == 5 || result == 6) {
 			makeMove(board[sx][sy],sx,sy,tx,ty);
-			setTurn(board[tx][ty].getName(), sx, tx, ty);
+			setTurn(board[tx][ty].getName(), sx, tx, ty,result);
 
 
 			if(result == 3) {
@@ -687,13 +743,8 @@ public class Board extends Application {
 				}
 				gameRunning = false;
 			}
-			else if(result == 5) {
-				sb.append("+ ");
-			}
-			else if(result == 6) {
-				sb.append("Draw");
-				gameRunning = false;
-			}
+
+			
 		}
 		else {
 			if(result == 7) {
@@ -734,10 +785,9 @@ public class Board extends Application {
 			}
 			
 			if(result != 12) {
-				setTurn(board[tx][ty].getName(), sx, tx, ty);
+				setTurn(board[tx][ty].getName(), sx, tx, ty,result);
 			}
 		}
-		System.out.println("D");
 		redraw(grid);
 
 
@@ -752,14 +802,25 @@ public class Board extends Application {
 	}
 
 
-	public static void makeMove(Piece piece, int x, int y, int tX, int tY){
+	public void makeMove(Piece piece, int x, int y, int tX, int tY){
 		if(board[tX][tY] != null){
 			//scoreboard(board[tX][tY].getName());
 		}
 
+		ArrayList<int[]> squaresToPaint = MGameUtility.PaintLastMove(board,x, y, tX, tY);
+		
+		System.out.println(squaresToPaint.size());
+		
+		for (int[] is : squaresToPaint) {
+			((Rectangle)(sqArray[is[0]][is[1]].getChildren().get(0))).setFill(new Color(0.01, 0.59, 0.57, 1));
+		}
+		
 		board[x][y] = null;
 		board[tX][tY] = piece;
 		piece.setCoords(tX,tY);
+		
+		
+		
 		//returnKingAndRookPositions(board,currentTurn);
 
 	}
@@ -895,7 +956,7 @@ public class Board extends Application {
 			board[X][Y] = null;
 			grid.getChildren().remove(grid.getChildren().size()-1);
 			smallmenu.hide();
-			setTurn(board[tX][tY].getName(), X, tX, tY);
+			setTurn(board[tX][tY].getName(), X, tX, tY,12);
 			sb.append("=R ");
 			redraw(grid);
 
@@ -909,7 +970,7 @@ public class Board extends Application {
 			board[X][Y] = null;
 			grid.getChildren().remove(grid.getChildren().size()-1);
 			smallmenu.hide();
-			setTurn(board[tX][tY].getName(), X, tX, tY);
+			setTurn(board[tX][tY].getName(), X, tX, tY,12);
 			redraw(grid);
 			sb.append("=N ");
 		});
@@ -923,7 +984,7 @@ public class Board extends Application {
 			board[X][Y] = null;
 			grid.getChildren().remove(grid.getChildren().size()-1);
 			smallmenu.hide();
-			setTurn(board[tX][tY].getName(), X, tX, tY);
+			setTurn(board[tX][tY].getName(), X, tX, tY,12);
 			redraw(grid);
 			sb.append("=B ");
 		});		
@@ -936,7 +997,7 @@ public class Board extends Application {
 			board[X][Y] = null;
 			grid.getChildren().remove(grid.getChildren().size()-1);
 			smallmenu.hide();
-			setTurn(board[tX][tY].getName(), X, tX, tY);
+			setTurn(board[tX][tY].getName(), X, tX, tY,12);
 			redraw(grid);
 			sb.append("=Q ");
 		});
