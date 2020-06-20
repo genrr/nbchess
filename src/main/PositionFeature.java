@@ -7,19 +7,19 @@ import java.util.Arrays;
 public class PositionFeature {
 	
 	private static Piece[][] board = null;
-	private static ArrayList<Piece> ownPieces = new ArrayList<Piece>();
-	private static ArrayList<Piece> enemyPieces = new ArrayList<Piece>();
+	private static ArrayList<Piece> ownPieces;
+	private static ArrayList<Piece> enemyPieces;
 	private static boolean whitesTurn;
 	private static int branching = 0;
-	private static ArrayList<int[]> allLegalSquares = new ArrayList<int[]>();
-	private static ArrayList<int[]> allFreeSquares = new ArrayList<int[]>();
-	private static ArrayList<int[]> allSafeSquares = new ArrayList<int[]>();
-	private static ArrayList<int[]> threatenedByEnemy = new ArrayList<int[]>();
+	private static ArrayList<int[]> allLegalSquares;
+	private static ArrayList<int[]> allFreeSquares;
+	private static ArrayList<int[]> allSafeSquares;
+	private static ArrayList<int[]> threatenedByEnemy;
 	private static double[] t = null;
 	private static double[] t2 = null;
 	private static double[] t3 = null;
 	private static double[] t4 = null;
-	private static int complexity = 0;
+	private static int complexity = 1;
 	private static int loops = 0;
 	
 	private static ArrayList<Integer> line = new ArrayList<Integer>();
@@ -46,21 +46,32 @@ public class PositionFeature {
 		whitesTurn = currentTurn;
 		enemyPieces = MGameUtility.ReturnAllPieces(board, !currentTurn);
 		ownPieces = MGameUtility.ReturnAllPieces(board, currentTurn);
-		
+		allLegalSquares = new ArrayList<int[]>();
+		allFreeSquares = new ArrayList<int[]>();
+		allSafeSquares = new ArrayList<int[]>();
+		threatenedByEnemy = new ArrayList<int[]>();
 		
 		t = HelperFunction1();
-		HelperFunction2();
-		t2 = HelperFunction3(ownPieces);
-		t3 = HelperFunction3(enemyPieces);
+		HelperFunction2();System.out.println("%");
+		t2 = HelperFunction3(ownPieces);System.out.println("%");
+		t3 = HelperFunction3(enemyPieces);System.out.println("%");
 		t4 = HelperFunction4();
 		
 	}
 	
-	public static void flushArrays() {
+	public static void reset() {
 		allLegalSquares.clear();
 		allFreeSquares.clear();
 		allSafeSquares.clear();
 		threatenedByEnemy.clear();
+		t = null;
+		t2 = null;
+		t3 = null;
+		t4 = null;
+		complexity = 1;
+		branching = 0;
+		loops = 0;
+		init = 0;
 	}
 	
 	private static double[] HelperFunction1() {
@@ -79,10 +90,10 @@ public class PositionFeature {
 				for(int j = 0; j<8; j++) {
 					
 					if(MGameUtility.distance(board, p, p.getX(), p.getY(), i, j, false) == 1) {
-						System.out.println("squares:"+squares);
+						//System.out.println("squares:"+squares);
 						squares++;
 						allLegalSquares.add(new int[] {i,j});
-						System.out.println("size"+allLegalSquares.size());
+						//System.out.println("size"+allLegalSquares.size());
 						
 						if(board[i][j] == null) {
 							freeSquares++;
@@ -137,7 +148,7 @@ public class PositionFeature {
 		int maxDepth = 0;
 		int maxBranches = 0;
 		int ownLoops = 0;
-		int ownComplexity = 0;
+		int ownComplexity ;
 		
 		
 		for(int i = 0; i<pieces.size(); i++) {
@@ -160,6 +171,8 @@ public class PositionFeature {
 		}
 		ownComplexity = complexity;
 		ownLoops = loops;
+		
+		System.out.println("complexity: "+ownComplexity);
 		
 		return new double[] {maxDepth,maxBranches,ownLoops,ownComplexity};
 	}
@@ -206,7 +219,7 @@ public class PositionFeature {
 	
 	//#1 Relative material amount (pieces on the board)
 	
-	public static double RelM() {
+	public double RelM() {
 		
 		return ownPieces.size() - enemyPieces.size();
 		
@@ -214,7 +227,7 @@ public class PositionFeature {
 	
 	//#2 Relative material AVG values
 	
-	public static double RelMAVG() {
+	public double RelMAVG() {
 		
 		double ownPieceValuesSum = 0;
 		double enemyPieceValuesSum = 0;
@@ -232,7 +245,7 @@ public class PositionFeature {
 	
 	//#3 Relative material values
 	
-	public static double RelMV() {
+	public double RelMV() {
 		
 		double ownPieceValuesSum = 0;
 		double enemyPieceValuesSum = 0;
@@ -251,11 +264,11 @@ public class PositionFeature {
 	
 	//#4 AVG piece value relative to other own pieces
 	
-	public static double RelPVAVG() {
+	public double RelPVAVG() {
 		double sum = 0;
 		
 		for(Piece p : ownPieces) {
-			sum += MSystem.RelPV(p);
+			sum += MSystem.RelPV(board,p);
 		}
 		return sum / ownPieces.size();
 
@@ -264,24 +277,58 @@ public class PositionFeature {
 	
 	//#5 highest piece value in relative to other own pieces
 	
-	public static double BestPiece() {
+	public double BestPiece() {
 		double best = 0;
 		
 		for(Piece p : ownPieces) {
-			if(MSystem.RelPV(p) > best) {
-				best = MSystem.RelPV(p);
+			if(MSystem.RelPV(board,p) > best) {
+				best = MSystem.RelPV(board,p);
 			}
 		}
 		return best;
 	}
 	
-	//#6
+	//#6 longest pawn chain
+	
+	public double LongestPawnChain() {
+		ArrayList<Piece> pawns = new ArrayList<Piece>();
+		int maxLength = 0;
+		int length = 0;
+		
+		
+		for(Piece p : ownPieces) {
+			if((whitesTurn && p.getId() == 24) || (!whitesTurn && p.getId() == 17)){
+				pawns.add(p);
+			}
+		}
+		
+		if(!pawns.isEmpty()) {
+			length = 1;
+		}
+		
+		
+		int i1 = 1;
+		int i2 = 1;
+		int tempX;
+		int tempY;
+		
+		
+		
+		for (Piece p : pawns) {
+			
+			length += DTree(p.getGid());
+			if(length > maxLength) {
+				maxLength = length;
+			}
+		}
+		return maxLength;
+	}
 	
 	
 	
 	//#7 distance of own pieces from start vs enemy pieces from start
 	
-	public static double DistanceFromDefaultRelativeToEnemy() {
+	public double DistanceFromDefaultRelativeToEnemy() {
 		
 		double ownDiff = 0;
 		double enemyDiff = 0;
@@ -338,18 +385,19 @@ public class PositionFeature {
 	
 	//#8 minimal enemy distance to own king 
 	
-	public static double MinDistKing_Enemy() {
+	public double MinDistKing_Enemy() {
 		
 		int minDistance = 100;
 		int pieceDist = 0;
 		
-		int kingX =0;
-		int kingY =0;
+		int[] t = MGameUtility.getKingPos(board,whitesTurn);
 		
+		int kingX = t[0];
+		int kingY = t[1];
 		
 		for(Piece p : enemyPieces) {
 			pieceDist = MGameUtility.distance(board, p, p.getX(), p.getY(), kingX, kingY, false);
-			if(pieceDist < minDistance) {
+			if(pieceDist != 0 && pieceDist < minDistance) {
 				minDistance = pieceDist; 
 			}
 
@@ -360,18 +408,20 @@ public class PositionFeature {
 	
 	//#9 minimal own distance to enemy king
 	
-	public static double MinDistKing_Own() {
+	public double MinDistKing_Own() {
 		
 		int minDistance = 100;
 		int pieceDist = 0;
 		
-		int kingX = 0;
-		int kingY = 0;
+		int[] t = MGameUtility.getKingPos(board,!whitesTurn);
+		
+		int kingX = t[0];
+		int kingY = t[1];
 
 		
 		for(Piece p : ownPieces) {
 			pieceDist = MGameUtility.distance(board, p, p.getX(), p.getY(), kingX, kingY, false);
-			if(pieceDist < minDistance) {
+			if(pieceDist != 0 && pieceDist < minDistance) {
 				minDistance = pieceDist; 
 			}
 
@@ -382,27 +432,96 @@ public class PositionFeature {
 	
 	//#10 % of own pieces under threat
 	
-	public static double PercentThreat_Own() {
+	public double PercentThreat_Own() {
 		return t4[0] / ownPieces.size();	
 	}
 	
 	//#11 % of enemy pieces attacked
 	
-	public static double PercentThreat_Enemy() {
+	public double PercentThreat_Enemy() {
 		return t4[1] / enemyPieces.size();		
 	}
 	
 	//#12 Degree of which the threats are answered, e.g. knight threatens bishop, count++, pawn protects bishop,  count-- count stays the same
 	//e.g. return amount of all unanswered threats
 	
-	public static double TradeEfficiency() {
+	public double TradeEfficiency() {
 		return t4[2];
 	}
 	
 	
-	//#13 no of adjacent empty squares
+	//#13 longest line of adjacent, legal and empty squares, "size of empty lanes" TODO: fix horrible implementation 
 	
-	public static double OpenSquareCount() {
+	public double OpenSquareCount() {
+		
+		int tX;
+		int tY;
+		int l = 0;
+		
+		boolean white = whitesTurn ? true : false;
+		
+		for(int i = 0; i < ownPieces.size(); i++) {
+			if(!whitesTurn) {
+				//is this piece rook/bishop/queen?
+				if(ownPieces.get(i).getId() == 11 || ownPieces.get(i).getId() == 13
+						|| ownPieces.get(i).getId() == 14 || ownPieces.get(i).getId() == 15) {
+					//iterate over the whole board for legal squares for this piece
+					for(int j1 = 0; j1 < 8; j1++) {
+						for(int j2 = 0; j2 < 8; j2++) {
+							if(MGameUtility.distance(board, ownPieces.get(i), ownPieces.get(i).getX(),
+									ownPieces.get(i).getY(), j1, j2, false) == 1) {
+								l++;
+							}
+						}
+					}
+				}
+			}
+			else {
+				if(ownPieces.get(i).getId() == 18 || ownPieces.get(i).getId() == 20 || 
+						ownPieces.get(i).getId() == 21 || ownPieces.get(i).getId() == 22) {
+					//iterate over the whole board for legal squares for this piece
+					for(int j1 = 0; j1 < 8; j1++) {
+						for(int j2 = 0; j2 < 8; j2++) {
+							if(MGameUtility.distance(board, ownPieces.get(i), ownPieces.get(i).getX(),
+									ownPieces.get(i).getY(), j1, j2, false) == 1) {
+								l++;
+							}
+						}
+					}
+				}
+			}
+			
+		}
+		
+		
+		return l;
+		
+//		for(int i = 0; i < allFreeSquares.size(); i++) {
+//			tX = allFreeSquares.get(i)[0];
+//			tY = allFreeSquares.get(i)[1];
+//			
+//			//(0,4)
+//			for(int j = 0; j < 8; j++) {
+//				if(tX == j) {
+//					for(int k = 0; k < allFreeSquares.size(); k++) {
+//						//next (1,7), skip
+//						//same (0,4), skip
+//						if(allFreeSquares.get(k)[0] != j || i == k) {
+//							continue;
+//						}
+//						//found either (0,5) or (0,3)
+//						else if(allFreeSquares.get(k)[0] == j && Math.abs(allFreeSquares.get(k)[1]-tY) == 1) {
+//							l++;
+//						}
+//						
+//						
+//					}
+//				}
+//			}
+//			
+//	
+//		}
+		
 		/*
 		int count = 0;
 		
@@ -463,13 +582,13 @@ public class PositionFeature {
 			}
 		*/
 			
-		return 1;//count+1;
+		//count+1;
 			
 	}
 	
 	//#14 % of pieces defended
 	
-	public static double PercentDefended() {
+	public double PercentDefended() {
 		double perc = 0;
 		
 		for(Piece p : ownPieces) {
@@ -485,13 +604,13 @@ public class PositionFeature {
 	
 	//#15 maximum legal squares available for a piece
 	
-	public static double MostSquaresAvailableForPiece() {
+	public double MostSquaresAvailableForPiece() {
 		return t[0];
 	}
 	
 	//#16 amount of defending pieces for the most defended piece
 	
-	public static double MostDefensesForPiece() {
+	public double MostDefensesForPiece() {
 		double defenses = 0;
 		double maxDefenses = 0;
 		
@@ -512,7 +631,7 @@ public class PositionFeature {
 	
 	//#17 maximal free squares for a piece
 	
-	public static double MostFreeSquaresForPiece() {
+	public double MostFreeSquaresForPiece() {
 		return t[1];
 	}
 	
@@ -520,56 +639,57 @@ public class PositionFeature {
 	
 	//#18 maximum squares safe for a piece
 	
-	public static double MostSquaresSafeForPiece() {
+	public double MostSquaresSafeForPiece() {
 		return t[2];
 	}
 	
 	//#19 # of squares available for all pieces in total
 	
-	public static double CountAllAvailableSquares() {
+	public double CountAllAvailableSquares() {
 		return allLegalSquares.size();
 	}
 	
 	//#20 # of squares free for all pieces in total
 	
-	public static double CountAllFreeSquares() {
+	public double CountAllFreeSquares() {
 		return allFreeSquares.size();
 	}
 	
 	//#21 # of squares safe for all pieces in total
 	
-	public static double CountAllSafeSquares() {
+	public double CountAllSafeSquares() {
 		return allSafeSquares.size();
 	}
 	
 	
 	//#22 move progression length = longest chain of defenses
 	
-	public static double LongestChainOfDefenses() {
+	public double LongestChainOfDefenses() {
 		return t2[0];
 	}
 
 	//#23 move progression branching
 	
-	public static double ChainBranching() {
+	public double ChainBranching() {
 		return t2[1];
 	}
 	
 	//#24 amount of defending loops in the tree
 	
-	public static double CountDefenseLoops() {
+	public double CountDefenseLoops() {
 		return t2[2];
 	}
 	
 	//#25 complexity of position ~ amount of computation needed to evaluate progression
 	
-	public static double PositionComplexity() {
+	public double PositionComplexity() {
 		return t2[3] * t2[1];
 	}
 	
-	//#26 complexity ratio
+	//#26 complexity ratio = (own maxBranches * own complexity) / 
+	// (enemy maxBranches * enemy complexity)
 	
-	public static double ComplexityRatio() {
+	public double ComplexityRatio() {
 		return (t2[3]*t2[1]) / (t3[3]*t3[1]);
 	}
 	
@@ -578,7 +698,17 @@ public class PositionFeature {
 	
 	public static ArrayList<Integer> getAllDefenders(int pieceGid) {
 		ArrayList<Integer> L = new ArrayList<Integer>();
-		ArrayList<Piece> pieces = MGameUtility.ReturnAllPieces(board, whitesTurn);
+		boolean color = false;
+
+		for(int i = 0; i<8; i++) {
+			for(int j = 0; j<8; j++) {
+				if(board[i][j] != null && board[i][j].getGid() == pieceGid) {
+					color = board[i][j].getColor();
+				}
+			}
+		}
+		//own pieces
+		ArrayList<Piece> pieces = MGameUtility.ReturnAllPieces(board, color);
 		
 		for(int j = 0; j<pieces.size(); j++) {
 			

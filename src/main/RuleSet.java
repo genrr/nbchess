@@ -15,7 +15,7 @@ public class RuleSet {
 	private static boolean bcastlingq;
 	private static boolean wcastlingk;
 	private static boolean bcastlingk;
-
+	private static boolean draw;
 
 	/**
 	 * 
@@ -51,6 +51,12 @@ public class RuleSet {
 		//System.out.println("validate: "+startX+","+startY+" -> "+targetX+","+targetY);
 		//System.out.println("en passant: "+s[6]+" "+s[7]);
 		
+		bcastlingk = false;
+		wcastlingk = false;
+		bcastlingq = false;
+		wcastlingq = false;
+		
+		draw = false;
 		board = rgrid;
 		int multX = 0;
 		int multY = 0;
@@ -93,7 +99,7 @@ public class RuleSet {
 		specialMove = specialMoves(board[startX][startY],board[startX][startY].getName(),pattern,startX,targetX,targetY);
 		
 		//System.out.println("special "+specialMove);
-
+		
 		//if castling
 		if(specialMove == 3) {
 			if(bcastlingk) {
@@ -167,8 +173,11 @@ public class RuleSet {
 				return 4;
 			}
 		}
+		if(draw) {
+			return 6;
+		}
 		//test if check is not resolved or new move causes check
-		else if(opponentsAttackingPieces.size() != 0) {
+		if(opponentsAttackingPieces.size() != 0) {
 			return 2;
 		}
 		//test if opponents king is in check after the move, current player checks opponent
@@ -242,7 +251,7 @@ public class RuleSet {
 			//if en passant square exists, return 1 (legal move)
 			//else, return 4 (not valid move)
 
-			if(p.getX() == pieceMovesInfo[6]+1 && (p.getY() == pieceMovesInfo[7]-1 || p.getY() == pieceMovesInfo[7]+1)
+			if(pieceMovesInfo[6] != 5 && p.getX() == pieceMovesInfo[6]+1 && (p.getY() == pieceMovesInfo[7]-1 || p.getY() == pieceMovesInfo[7]+1)
 					&& tX == pieceMovesInfo[6] && tY == pieceMovesInfo[7]) {
 				return 1;
 			}
@@ -271,7 +280,7 @@ public class RuleSet {
 			}
 			//en passant theoretically possible, check if current pawn is on right X row for en passant and
 			//if target square is (x--,y--) OR (x--,y++)
-			if(p.getX() == pieceMovesInfo[6]-1 && (p.getY() == pieceMovesInfo[7]-1 || p.getY() == pieceMovesInfo[7]+1)
+			if(pieceMovesInfo[6] != 2 && p.getX() == pieceMovesInfo[6]-1 && (p.getY() == pieceMovesInfo[7]-1 || p.getY() == pieceMovesInfo[7]+1)
 					 && tX == pieceMovesInfo[6] && tY == pieceMovesInfo[7]) {
 				return -1;
 			}
@@ -367,35 +376,19 @@ public class RuleSet {
 		 */
 		
 		int amount;
+		boolean notDefended = true;
 
-		System.out.println("is line from"+sx+","+sy+" to "+tx+","+ty+" under attack?");
+		//System.out.println("is line from"+sx+","+sy+" to "+tx+","+ty+" under attack?");
 		
 		amount = Math.max(Math.abs(sx-tx), Math.abs(sy-ty));
 		
 		ArrayList<Piece> allPieces = MGameUtility.ReturnAllPieces(grid, hostile ? !whitesTurn : whitesTurn);
 		
-		System.out.println("list contains "+ allPieces.get(0).getColor()+" pieces");
+		//System.out.println("list contains "+ allPieces.get(0).getColor()+" pieces");
 		
 		//loop through the "line" from (sx,sy) -> (tx,ty) with (tempX,tempY) being the points in between
 		for(int z = 0; z <= amount-1; z++ ) {
 
-			for(Piece p : allPieces) {
-				
-				System.out.println("X,Y : "+tempX+", "+tempY);
-				
-				if(!p.getName().contains("king") && MGameUtility.distance(grid, p, p.getX(), p.getY(), tempX, tempY, false) == 1) {
-
-					/*
-					if(p.getName().contains("pawn") && p.getY() == tempY) {
-						return false;
-					}
-					*/
-					
-					return true;
-				}
-				
-			}
-			
 			if(tx > sx) {
 				tempX++;
 			}
@@ -408,7 +401,63 @@ public class RuleSet {
 			else if(ty < sy) {
 				tempY--;
 			}
+			
+			for(Piece p : allPieces) {
+				
+				//System.out.println("X,Y : "+tempX+", "+tempY);
+				
+				//own piece can move to (tempX,tempY)
+				if(MGameUtility.distance(grid, p, p.getX(), p.getY(), tempX, tempY, false) == 1) {
+					
+					//we're somewhere along the line, not at the end yet
+					if((tempX != tx || tempY != ty)) {
+						//..but king can't block the check now, obviously
+						if(!p.getName().contains("king")){
+							//System.out.println("line blocked/attacked");
+							return true;
+						}
+					}
+					//tempX = tx && tempY = ty at the end point(piece itself)
+					else {
+						//if king can capture the piece at the end, check if the piece is defended
+						if(p.getName().contains("king")){
+							ArrayList<Piece> enemyPieces = MGameUtility.ReturnAllPieces(grid, !whitesTurn);
+							
+							for (Piece q : enemyPieces) {
+								//System.out.println("D: "+MGameUtility.distance(grid, q, q.getX(), q.getY(), tx, ty, false));
+								if(MGameUtility.distance(grid, q, q.getX(), q.getY(), tx, ty, false) == -1) {
+									//System.out.println(tx+ty+"defended by: "+q.getX()+" "+q.getY());
+									//piece was defended, king cant capture,
+									notDefended = false;
+								}
+							}
+							//piece at the end is not defended, can be captured by king
+							if(notDefended) {
+								return true;
+							}
+							
+							
+						}
+						//normal capture by some own piece
+						else {
+							//System.out.println("line blocked/attacked");
+							return true;
+						}
+					}
+					
+
+					/*
+					if(p.getName().contains("pawn") && p.getY() == tempY) {
+						return false;
+					}*/
+
+				}
+				
+			}
+			
+
 		}
+		System.out.println("line free");
 		
 	return false;
 	
@@ -421,6 +470,7 @@ public class RuleSet {
 			if(whitesTurn) {
 				if(board[7][1] == null && board[7][2] == null && board[7][3] == null) {
 					if(pieceMovesInfo[2] == 0 && pieceMovesInfo[4] == 0 && !lineIsUnderAttack(board,7,0,7,4,whitesTurn,false,true)) {
+						System.out.println("white queenside");
 						wcastlingq = true;
 						return true;
 					}
@@ -431,6 +481,7 @@ public class RuleSet {
 				if(board[0][1] == null && board[0][2] == null && board[0][3] == null) {
 					
 					if(pieceMovesInfo[0] == 0 && pieceMovesInfo[5] == 0 && !lineIsUnderAttack(board,0,0,0,4,whitesTurn,false,true)) {
+						System.out.println("black queenside");
 						bcastlingq = true;
 						return true;
 					}
@@ -439,11 +490,14 @@ public class RuleSet {
 		}
 		//Kingside
 		else if(pattern[1] == 2) {
+			System.out.println("turn:"+whitesTurn+ "board[0][5] == null "+(board[0][5] == null)+
+					" board[0][6] == null "+( board[0][6] == null));
 			if(whitesTurn) {
 				if(board[7][5] == null && board[7][6] == null) {
 					System.out.println("checking");
 					System.out.println((pieceMovesInfo[3] == 0)+" "+(pieceMovesInfo[4] == 0));
-					if(pieceMovesInfo[3] == 0 && pieceMovesInfo[4] == 0 && !lineIsUnderAttack(board,7,4,7,7,whitesTurn,false,true)) {		
+					if(pieceMovesInfo[3] == 0 && pieceMovesInfo[4] == 0 && !lineIsUnderAttack(board,7,4,7,7,whitesTurn,false,true)) {
+						System.out.println("white kingside");
 						wcastlingk = true;
 						return true;
 					}
@@ -452,6 +506,7 @@ public class RuleSet {
 			else {
 				if(board[0][5] == null && board[0][6] == null) {
 					if(pieceMovesInfo[1] == 0 && pieceMovesInfo[5] == 0 && !lineIsUnderAttack(board,0,4,0,7,whitesTurn,false,true)) {
+						System.out.println("black kingside");
 						bcastlingk = true;
 						return true;
 					}
@@ -475,7 +530,8 @@ public class RuleSet {
 		//find kings moves
 		for(int i = 0; i<8; i++) {
 			for(int j = 0; j<8; j++) {
-				if(MGameUtility.distance(board, board[kingX][kingY], kingX, kingY, i, j,false) == 1 && (i != kingX  || j != kingY)) {	
+				if(MGameUtility.distance(board, board[kingX][kingY], kingX, kingY, i, j, false) == 1 && 
+						(board[i][j] == null || board[i][j].getColor() == !board[kingX][kingY].getColor())) {	
 					//System.out.println("available for king: "+i+", "+j);
 					kingsMoves.add(new int[] {i,j});
 				}
@@ -549,19 +605,12 @@ public class RuleSet {
 		
 		ArrayList<Piece> c;
 		
+	
 		//opponents king x,y
-		int kingX = 0,kingY = 0;
+		int kingX = MGameUtility.getKingPos(board,!turn)[0];
+		int kingY = MGameUtility.getKingPos(board,!turn)[1];
 		
-		for(int i = 0; i<8; i++) {
-			for(int j = 0; j<8; j++) {
-				if(board[i][j] != null && board[i][j].getName().contains("king")) {
-					if(board[i][j].getColor() == !turn) {
-						kingX = i;
-						kingY = j;				
-					}
-				}
-			}
-		}
+		
 		
 		//if this variable reaches 0 after initializing it with kingsMoves size, there are no legal moves for the king
 		int availableSquares = 0;
@@ -571,6 +620,7 @@ public class RuleSet {
 		
 		//return own pieces
 		ArrayList<Piece> ownPieces = MGameUtility.ReturnAllPieces(board, turn);
+		ArrayList<Piece> enemyPieces = MGameUtility.ReturnAllPieces(board, !turn);
 		//store opponent kings possible moves in here
 		kingsMoves = GetKingsSquares(kingX,kingY);
 
@@ -580,8 +630,12 @@ public class RuleSet {
 		//System.out.println("squares: "+availableSquares);
 		
 		/*
-		 * in the outer loop, go through kings moves
-		 * in the inner, go through opponents pieces
+		 * in the outer loop, go through kings moves array [x,y]
+		 * go through own pieces, if found exact match, own piece is at kings square
+		 * 		check if it is defended
+		 * 		is so, decrement available squares
+		 * assign to 'threat' dist between our piece and current square
+		 * if result is 1(can move there) or -2(pawn attacks diagonally), decrement squares
 		 * once one own piece threatens kings legal square, decrement availableSquares
 		 */
 		for (int[] is : kingsMoves) {
@@ -592,8 +646,8 @@ public class RuleSet {
 				if(p.getX() == is[0] && p.getY() == is[1]) {
 					for(Piece q : ownPieces) {
 						threat = MGameUtility.distance(board, q, q.getX(), q.getY(), p.getX(), p.getY(), false);
-						//piece at kings area, is defended and cannot be captured
-						if(threat == 1) {
+						//piece at kings area, is defended(-1) and cannot be captured
+						if(threat == -1) {
 							availableSquares--;
 							break;
 						}
@@ -604,12 +658,10 @@ public class RuleSet {
 				threat = MGameUtility.distance(board, p, p.getX(), p.getY(), is[0], is[1], false);
 				
 				//either enemy piece can move to kings square is[n] || pawn threatens the square(cannot move to it, though)
-				if(threat == 1 || threat == -2) {
-					
+				if((p.getName().contains("pawn") && threat == -2) || !p.getName().contains("pawn") && threat == 1) {
 					availableSquares--;
-					//System.out.println("sq:"+availableSquares);
+					//System.out.println("squares:"+availableSquares);
 					break;
-					
 				}
 			}
 		}
@@ -622,26 +674,24 @@ public class RuleSet {
 		 */
 		
 		//return opponents pieces that cause check for white(for dual checks)
-		//checking pieces give pieces that give check to current player(US), we want pieces that we're giving check OURSELVES, so hard.. 
-		c = CheckingPieces(!turn, board);
-		//System.out.println("squares: "+availableSquares);
-		//System.out.println("checking pieces: "+c.size());
-		//System.out.println("piece0: ("+c.get(0).getX()+","+c.get(0).getY()+")");
+		 
+		c = CheckingPieces(!turn, board);		
+		System.out.println("size"+c.size());
 		
-		
+		//king has no squares
 		if(availableSquares == 0) {
 			//two or more checking pieces while king cannot move -> checkmate
 			if(c.size() > 1) {
 				return true;
 			}
-			
-			for(Piece p : c) {
-
-				// piece givin' a check is a knight
+			else if(c.size() == 1) {
+				//this piece checks
+				Piece p = c.get(0);
+				
+				//is it a knight?
 				if(p.getName().contains("knight")) {
-
-					
-					for(Piece q : MGameUtility.ReturnAllPieces(board, !turn)) {
+					//is a knight, can it be captured?
+					for(Piece q : enemyPieces) {
 						if(MGameUtility.distance(board, q, q.getX(), q.getY(), p.getX(), p.getY(), false) == 1) {
 							return false;
 						}
@@ -650,21 +700,61 @@ public class RuleSet {
 					return true;
 				}
 
-				//one piece givin' check, that can't be blocked -> checkmate
-				
-				if(!lineIsUnderAttack(board, kingX, kingY, p.getX(), p.getY(), !turn, true, false)) {
+				//piece is not a knight, if line cannot be blocked(includes capturing the piece itself) -> checkmate
+				else if(!lineIsUnderAttack(board, kingX, kingY, p.getX(), p.getY(), !turn, true, false)) {
 					System.out.println("checkmate");
 					return true;
 				}
 			}
+			//no check, if no squares for king test for any legal move, if not found -> stalemate
+			else if(c.size() == 0) {
+				boolean moveFound = false;
+				//stalemate test for opponents pieces, did this current move cause state in which
+				//no legal moves are available for opponent?
+					for(Piece q : enemyPieces) {
+						int i = -1;
+						int j = 0;	
+						
+							while(!moveFound) {
+								if(i < 7) {
+									i++;
+								}
+								else {
+									i = 0;
+									j++;
+								}
+								if(j == 8) {
+									break;
+								}
+								
+								//System.out.println(q.getX()+" "+q.getY()+" to "+i+" "+j);
+								//a legal move is found, draw = false
+								if(!q.getName().contains("king") &&
+									MGameUtility.distance(board, q, q.getX(), q.getY(), i, j, false) == 1) {
+									moveFound = true;
+								}
+			
+								
+							}
+							
+		
+					}
+					if(!moveFound) {//STALEMATE
+						//System.out.println("should not happen");
+						draw = true;
+					}
+			}
+			
 		}
+		
 
+
+		//something could be done, not checkmate
 		return false;
 	}
 
 
 	//Draws:
-	//stalemate
 	//3-fold(optional) 5-fold(absolute), 50-moves without pawn moves/captures(optional draw) 75-moves(absolute draw), 
 	//insufficient material:
 	//king & king
@@ -746,23 +836,11 @@ public class RuleSet {
 		
 		}
 		
-		
-		//stalemate test for opponents pieces, did this current move cause state in which
-		//no legal moves are available for opponent?
-		for(Piece p : opponentsPieces) {
-			for(int i = 0; i<8; i++) {
-				for(int j = 0; j<8; j++) {
-					//a legal move is found
-					if(MGameUtility.distance(board, p, p.getX(), p.getY(), i, j, false) == 1) {
-						return false;
-					}
-				}
-			}
-		}
+
 		
 
 		
-		return true;
+		return false;
 	}
 
 

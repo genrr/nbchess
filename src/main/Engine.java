@@ -1,6 +1,7 @@
 package main;
 
 import java.util.Arrays;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.stream.IntStream;
 
@@ -30,14 +31,14 @@ public class Engine extends Thread {
 	 */
 	
 	//Store all data and its development during the whole game of undetermined length
-	ArrayList<double[]> heurStorage; //(h23,turnNo) heuristic development
-	ArrayList<double[][]>  evalStorage; //(h19,params,turnNo) eval parameter development
-	ArrayList<double[][][]>  relStorage; //(h1,h16,z,turnNo) relation development
-	//(h21,turnNo,value) heuristic development compared to value development
+	ArrayList<double[]> heurStorage; //(h_index,turnNo) heuristic development
+	ArrayList<double[][]>  evalStorage; //(h_index,[param1,param2,param3],turnNo) eval parameter development
+	ArrayList<double[][][]>  relStorage; //(h_index1,h_index2,z,turnNo) relation development
+	//(h_index,turnNo,value) heuristic development compared to value development
 	ArrayList<double[][]> heurValStorage; 
-	 //(h5,params,turnNo,value) eval parameter development compared to value development
+	 //(h_index,params x3,turnNo,value) eval parameter development compared to value development
 	ArrayList<double[][][]> evalValStorage; 
-	//(h4,h9,z,turnNo,value) relation development compared to value development
+	//(hindex1,hindex2,z,turnNo,value) relation development compared to value development
 	ArrayList<double[][][][]> relValStorage;  
 	
 	//store Objectives, searched game tree, Lines
@@ -46,7 +47,10 @@ public class Engine extends Thread {
 	Piece[][][] lines;
 	
 	private BlockingQueue<Message> queue;
+	private BlockingQueue<Message> queue2;
 	private boolean color;
+	private Message move;
+	private boolean drawOfferedByPlayer;
 	
 	public Engine(BlockingQueue<Message> q, boolean color) {
 		this.queue = q;
@@ -56,18 +60,8 @@ public class Engine extends Thread {
 
 	public void run() {
 		
-		//run these once at the start 
-		if(!alreadyStarted) {			
-
-
-			GameLogic.InitData();
-			//GameLogic.InitSP();
-			//GameLogic.InitObjectives();
-			//GameLogic.InitCharacters();
-			//GameLogic.InitIdeals();
-			alreadyStarted = true;
-		}
 		
+
 
 		Message element;
 		
@@ -76,15 +70,23 @@ public class Engine extends Thread {
 				element = queue.peek();
 				
 				if(element.getStatus().equals("request")) {
-					element = queue.take();
-					
+					element = queue.take();				
 					data = element.getBoardData();
 					turnNumber = element.getTurnNumber();
-					info = element.getPiecesInfo();
-					
-	
-					Message move = new Message(null,GameLogic.Generate(data,turnNumber,color, info),
-							turnNumber,new int[] {-1,-1},"ready");
+					info = element.getPiecesInfo();					
+
+					//run these once at the start 
+					if(!alreadyStarted) {
+						queue2 = new ArrayBlockingQueue<Message>(1);
+						Pipeline storage = new Pipeline(queue2,color);
+						storage.start();
+
+						alreadyStarted = true;
+						move = GameLogic.Generate(data,turnNumber,color, info,queue2,true);
+					}	
+					else {
+						move = GameLogic.Generate(data,turnNumber,color, info,queue2,!alreadyStarted);
+					}
 					
 					queue.put(move);
 					Platform.runLater(new Runnable() {
@@ -98,6 +100,9 @@ public class Engine extends Thread {
 					lines = element.getLines();
 				}
 				else if(element.getStatus().equals("exit")) {
+					//shut down storage thread
+					queue2.put(new Message(null,"exit"));
+					//shut down this thread
 					break;
 				}
 			}

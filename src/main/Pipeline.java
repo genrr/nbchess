@@ -1,93 +1,86 @@
 package main;
 
+import java.util.ArrayList;
+import java.util.concurrent.BlockingQueue;
+
 public class Pipeline extends Thread{
 	
 	public static boolean TestConstant = true;
 
-	private double[] SP;
-	private int[][] O;
-	private double[] Ev;
-	private double[][] R;
-	private double[][] Rv;
-	private Piece[][][] SPn;
+	//store all value function y:s for the whole game
+	ArrayList<double[]> valStorage; 
+	/* e.g. get value3 history: iterate through whole arraylist with double[i] i = 2, get double[]
+	 * containing value3:s for the whole game 
+	 * [][][]
+	 * [][][]
+	 * [][][]
+	 * [][][]
+	 * [][][]
+	 */
 	
-	public Pipeline() {
-		
+	//Store all data and its development during the whole game of undetermined length
+	ArrayList<double[]> heurStorage; //(h23,turnNo) heuristic development
+	ArrayList<double[][]>  evalStorage; //(h19,params,turnNo) eval parameter development
+	ArrayList<double[][][]>  relStorage; //(h1,h16,z,turnNo) relation development
+	//(h21,turnNo,value) heuristic development compared to value development
+	ArrayList<double[][]> heurValStorage; 
+	 //(h5,params,turnNo,value) eval parameter development compared to value development
+	ArrayList<double[][][]> evalValStorage; 
+	//(h4,h9,z,turnNo,value) relation development compared to value development
+	ArrayList<double[][][][]> relValStorage;  
+	
+	//store Objectives, searched game tree, Lines
+	int[][] objStorage;
+	Piece[][][] searchTree;
+	Piece[][][] lines;
+	
+	private BlockingQueue<Message> queue;
+	private boolean color;
+	
+	public Pipeline(BlockingQueue<Message> queue,boolean color) {
+		this.queue = queue;
+		this.color = color;
 	}
 	
 	
 	public void run() {
 		
-		while(Board.getGameRunning()) {
+		Message element;
+		
+		do {
 			try {
-				System.out.println(Thread.currentThread());
-				System.out.println("storage running..");
-				Thread.sleep(1000);
-			}
-			catch(InterruptedException e) {
+				element = queue.take();
+				System.out.println("somthing, "+element.getStatus()+" in queue");
 				
+				if(element.getStatus().contentEquals("send E -> P")) {
+					heurStorage = element.hs;
+					evalStorage = element.es;
+					relStorage = element.rs;
+					heurValStorage = element.hvs;
+					evalValStorage = element.evs;
+					relValStorage = element.rvs;
+				}
+				else if(element.getStatus().contentEquals("request P -> E")) {
+					queue.put(new Message(heurStorage,evalStorage,relStorage,
+							heurValStorage,evalValStorage,relValStorage,"send P -> E"));
+					Thread.sleep(1000);
+				}
+				else if(element.getStatus().contentEquals("exit")) {
+					System.out.println("exiting pipeline..");
+					break;
+				}
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
+			//System.out.println("element at pipeline: "+element);
+
+				
+
 		}
+		while(true);
 	}
 	
-	
-	public void push(Piece[][][] data) {
-		
-	}
-	
-	
-	public void inputData(double[] SP, int[][] O, Piece[][][] SPn, double[] Ev, 
-			double[][] R, double[][] Rv) {
-		this.SP = SP;
-		this.O = O;
-		this.SPn = SPn;
-		this.Ev = Ev;
-		this.R = R;
-		this.Rv = Rv;
-	}
-	
-	
-	public double[] getSP() {
-		return SP;
-	}
-	
-	public int[][] getObj(){
-		return O;
-	}
-	
-	public Piece[][][] getSPn(){
-		return SPn;
-	}
-	
-	public double[] getEv() {
-		return Ev;
-	}
-	
-	public double[][] getRel(){
-		return R;
-	}
-	
-	public double[][] getRV(){
-		return Rv;
-	}
-	
-	private static void getPositions() {
-		
-	}
 	
 
-	
-	
-	
-	
-	
-	public static void outputData() {
-		
-	}
-	
-	public static void main(String[] args) {
-		StochasticSystem s = new StochasticSystem();
-		s.start();
-	}
-	
 }

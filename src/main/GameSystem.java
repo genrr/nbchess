@@ -160,7 +160,7 @@ public class GameSystem {
 	            genTries--;
 	            
 	        }
-	        while(!ValueFunction.valuesCheck(pos,white,qualityCoeff));
+	        while(!ValueFunction.normalize(pos,white,qualityCoeff));
 	        
 	        for(int i = 0; i<maxTries; i++) {
 		        if(dir == -1) {

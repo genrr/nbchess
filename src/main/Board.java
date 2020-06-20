@@ -5,12 +5,16 @@ import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
+import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -56,6 +60,7 @@ public class Board extends Application {
 	private static boolean BotColor;
 	private static BlockingQueue<Message> queue = new ArrayBlockingQueue<>(1);
 
+	private static ScrollPane consoleContainer = new ScrollPane();
 	private static TextArea console = new TextArea();
 	private static GridPane grid = new GridPane();
 	private static StringBuilder sb = new StringBuilder();	
@@ -68,6 +73,7 @@ public class Board extends Application {
 	private static String turnLabelText = "";
 	private static Pane selectedTargetSquare = null;
 	private Pane[][] sqArray = new Pane[8][8];
+	private boolean check;
 
 	private static boolean bKingMoved = false;
 	private static boolean wKingMoved = false;
@@ -87,7 +93,7 @@ public class Board extends Application {
 		Scene scene = new Scene(bp,1080,920);
 		window.setScene(scene);
 		window.show();
-
+		
 		VBox sidebar = new VBox();
 		//sidebar.setOrientation(Orientation.VERTICAL);
 
@@ -106,11 +112,23 @@ public class Board extends Application {
 		HBox functionSettingsContainer = new HBox();
 		HBox.setMargin(colorButton,new Insets(25.0,10.0,50.0,10.0));
 
-
-		Pane consolePane = new Pane();
-		consolePane.setPadding(new Insets(30));
-		console.setPrefSize(235, 400);
-		consolePane.getChildren().add(0,console);
+		
+		consoleContainer.setPadding(new Insets(15));
+		console.resize(250, 550);
+		
+		console.textProperty().addListener(new ChangeListener<Object>() {
+			@Override
+			public void changed(ObservableValue<?> observable, Object oldValue,
+					Object newValue) {
+				console.setScrollTop(Double.MAX_VALUE);
+			}
+		});
+		
+		
+		//console.setPrefSize(250, 550);
+		//console.autosize();
+		System.out.println(console.getLayoutBounds().toString());
+		consoleContainer.setContent(console);
 		Label turnLabel = new Label("");
 		turnLabel.setPrefSize(250,50);
 		turnLabel.setAlignment(Pos.CENTER);
@@ -168,7 +186,7 @@ public class Board extends Application {
 			if(newValue) {
 				System.out.println("move ready!");
 				try {
-					receiveMove(queue.take().getMove());
+					receiveMove(queue.take());
 				} catch (InterruptedException e1) {
 					e1.printStackTrace();
 				}
@@ -189,11 +207,11 @@ public class Board extends Application {
 		menu1.getChildren().addAll(resignButton,drawButton,rotateButton, colorButton);
 		menu2.getChildren().add(functionSettingsContainer);
 
-		sidebar.getChildren().addAll(exitButton,consolePane,initButtonContainer,turnLabel,
+		sidebar.getChildren().addAll(exitButton,consoleContainer,initButtonContainer,turnLabel,
 				resetButton,menu1,menu2);
 		startButton.setOnAction(e -> startNewGame(initButtonContainer));
 		loadButton.setOnAction(e -> loadGame());
-		resetButton.setOnAction(e -> resetGame(initButtonContainer,consolePane,startButton,loadButton));
+		resetButton.setOnAction(e -> resetGame(initButtonContainer,consoleContainer,startButton,loadButton));
 		exitButton.setOnAction(e -> exitGame());
 		colorButton.setOnAction(e -> colorChanger(grid));
 		resignButton.setOnAction(e -> endGame());
@@ -281,7 +299,7 @@ public class Board extends Application {
 	}
 
 
-	private void resetGame(HBox initButtonContainer, Pane consolePane, Button s, Button l) {
+	private void resetGame(HBox initButtonContainer, ScrollPane consoleCont, Button s, Button l) {
 		initButtonContainer.getChildren().clear();
 		initButtonContainer.getChildren().addAll(s,l);
 		initButtonContainer.setVisible(true);
@@ -301,7 +319,7 @@ public class Board extends Application {
 		currentTurn = true;
 		fullTurns.set(1);;
 		halfTurns.set(0);
-		((TextArea)(consolePane.getChildren().get(0))).clear();
+		((TextArea)consoleCont.getContent()).clear();
 		sb = new StringBuilder();
 		initBoard(grid);
 	}
@@ -392,13 +410,12 @@ public class Board extends Application {
 			sb.append("draw accepted");
 		}
 		else {
-			sb.append("Draw offered by player");
-			if(GameLogic.DrawDecision(board, fullTurns.get(), currentTurn)) {
-				gameRunning = false;
-				sb.append("draw accepted");
-			}
-			else {
-				sb.append("draw declined");
+			sb.append("Draw offered by player..");
+			try {
+				queue.put(new Message(null,"draw requested by player"));
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
 		}
 
@@ -436,7 +453,14 @@ public class Board extends Application {
 		}
 		else {
 			sb.append(pieceSymbol(piece,y,tx,ty)+(result == 5 ? '+' : "")+" ");
+			
+			if(result == 5) {
+				check = true;
+			}
+
 		}
+
+
 			
 		System.out.println("botColor "+BotColor+", current turn "+currentTurn+", movecounter: "+moveCounter+" counter: "+halfTurns+"\n");
 
@@ -446,23 +470,31 @@ public class Board extends Application {
 
 
 
-	public void receiveMove(int[] m) {
+	public void receiveMove(Message m) {
 
-		int[] move = m;
+		int[] move = m.getMove();
+		String status = m.getStatus();
 
 		System.out.println("setting message object: "+"board: "+board+" turn: "+(fullTurns+""));
 
 
 
-		//handle resignation
-		if(move.length == 1) {
-			if(PlayerColor) {
-				sb.append("White wins by resignation");
+		//handle engine resignation
+		if(status.equals("resign") || status.equals("draw accepted")) {
+			if(!status.equals("draw accepted")) {
+				if(PlayerColor) {
+					sb.append("White wins by resignation");
+				}
+				else {
+					sb.append("Black wins by resignation");
+				}
 			}
 			else {
-				sb.append("Black wins by resignation");
+				sb.append("Draw accepted");
 			}
+			
 
+			//shut down engine thread
 			try {
 				queue.put(new Message(null, null, 0, null, "exit"));
 			} catch (InterruptedException e) {
@@ -471,7 +503,7 @@ public class Board extends Application {
 			gameRunning = false;
 			return;	
 		}
-		else if(move.length == 2) {
+		else if(m.getStatus().equals("draw requested")) {
 			drawOfferedByBot = true;
 			sb.append("Draw offered by mayflower -- press 'Draw' to accept, play move to decline");
 		}
@@ -487,7 +519,7 @@ public class Board extends Application {
 		int i2 = 0;
 		int j2 = 0;
 
-
+		grid.getChildren().clear();
 
 		for(i = isDefaultBoardRotation ? 0 : 7; i<8 && i > -1; i = isDefaultBoardRotation ? i + 1 : i - 1, i2++) {
 			for(j = isDefaultBoardRotation ? 0 : 7; j<8 && j > -1; j = isDefaultBoardRotation ? j + 1 : j - 1, j2 = (j2+1)%8) {
@@ -550,7 +582,7 @@ public class Board extends Application {
 				
 				p.setOnMouseDragEntered(e -> {
 					Pane n = (Pane)(e.getGestureSource());
-					Image s = ((ImageView) n.getChildren().get(1)).getImage();
+					//Image s = ((ImageView) n.getChildren().get(1)).getImage();
 					int a = Integer.parseInt(""+n.getId().charAt(0));
 					int b = Integer.parseInt(""+n.getId().charAt(1));
 					((sqArray[temp2][temp].getChildren().get(0))).setViewOrder(5);
@@ -573,6 +605,12 @@ public class Board extends Application {
 					e.consume();
 				});
 
+				int[] t = MGameUtility.getKingPos(board,currentTurn);
+				
+				if(check && i == t[1] && j == t[0]) {
+					((Rectangle)p.getChildren().get(0)).setFill(new Color(1.0,0.2,0.0,0.7));
+					check = false;
+				}
 				
 		
 				
@@ -584,37 +622,28 @@ public class Board extends Application {
 			}
 		}
 		console.setText(sb.toString());
+		console.appendText("");
 
 		return grid;
 	}
 
-
-	private void squareSelector(Pane p, int x, int y) {
-		
-		
-		System.out.println(selectedTargetSquare);
-		
-		if(!gameRunning) {
-			return;
-		}
-		if(!moving) {
-			try {
-				moveValidator(startX,startY,x,y);
-			} catch (NullPointerException npe) {
-				npe.printStackTrace();
-			}
-
-			((Rectangle)(p.getChildren().get(0))).setFill(selectedColor);
-		}
-		else {
-			((Rectangle)(p.getChildren().get(0))).setFill(new Color(0.53, 0.59, 0.57, 1));
-			startX = x; 
-			startY = y;
-			
-			
-		}
-	}
-
+	/*
+	 * private void squareSelector(Pane p, int x, int y) {
+	 * 
+	 * 
+	 * System.out.println(selectedTargetSquare);
+	 * 
+	 * if(!gameRunning) { return; } if(!moving) { moveValidator(startX,startY,x,y);
+	 * 
+	 * ((Rectangle)(p.getChildren().get(0))).setFill(selectedColor); } else {
+	 * ((Rectangle)(p.getChildren().get(0))).setFill(new Color(0.53, 0.59, 0.57,
+	 * 1)); startX = x; startY = y;
+	 * 
+	 * 
+	 * } }
+	 */
+	
+	
 	/*
 	 * 0 - legal move
 	 * 1 - illegal
@@ -841,11 +870,12 @@ public class Board extends Application {
 				else {
 					//w king moved
 					if(board[i][j].getName().equals("king_w") && (i != 7 || j != 4)) {
+						System.out.println("w king moved "+i+" "+j);
 						boardPiecesInfo[4] = 1;
 					}
 					// b king moved
 					if(board[i][j].getName().equals("king_b") && (i != 0 || j != 4)) {
-						
+						System.out.println("b king moved "+i+" "+j);
 						boardPiecesInfo[5] = 1;
 					}
 
@@ -854,22 +884,25 @@ public class Board extends Application {
 				//rooks moved?
 				if(board[i][j].getGid() == 11) {
 					if(i != 0 || j != 0) {
-						System.out.println(" rook moving "+i+" "+j);
+						System.out.println("11 rook moved "+i+" "+j);
 						boardPiecesInfo[0] = 1;
 					}
 				}
 				else if(board[i][j].getGid() == 18) {
 					if(i != 0 || j != 7) {
+						System.out.println("18 rook moved "+i+" "+j);
 						boardPiecesInfo[1] = 1;
 					}
 				}
 				else if(board[i][j].getGid() == 27){
 					if(i != 7 || j != 0) {
+						System.out.println("27 rook moved "+i+" "+j);
 						boardPiecesInfo[2] = 1;
 					}
 				}
 				else if(board[i][j].getGid() == 34){
 					if(i != 7 || j != 7) {
+						System.out.println("34 rook moved "+i+" "+j);
 						boardPiecesInfo[3] = 1;
 					}
 				}
@@ -880,6 +913,8 @@ public class Board extends Application {
 
 	}
 
+	
+	
 
 	public static void setCastling(String s) {
 
@@ -956,6 +991,7 @@ public class Board extends Application {
 			board[X][Y] = null;
 			grid.getChildren().remove(grid.getChildren().size()-1);
 			smallmenu.hide();
+			RuleSet.validate(board, currentTurn, X, Y, tX, tY, boardPiecesInfo);
 			setTurn(board[tX][tY].getName(), X, tX, tY,12);
 			sb.append("=R ");
 			redraw(grid);
@@ -1404,7 +1440,7 @@ public class Board extends Application {
 	private void colorChanger(GridPane grid) {
 		colorSwitch = (colorSwitch+1) % 3; 
 		if(colorSwitch == 0) {
-			gridColor1 = new Color(0.84,0.67,0.47,1.0);
+			gridColor1 = new Color(12.0/255,0.0,35.0/255,0.25);//Color(0.84,0.67,0.47,1.0);
 			gridColor2 = new Color(0.98,0.88,0.71,1.0);
 		}
 		else if(colorSwitch == 1) {

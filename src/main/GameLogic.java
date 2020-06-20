@@ -4,16 +4,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.BlockingQueue;
 
 public class GameLogic {
 	
+	private static boolean white;
+	private static int[] info;
 	private static double[] heuristics = new double[26];;
 	static Objectives o;
-	private static double[][] eval = new double[3][26];
-	
+	private static boolean resign = false;
 	private static boolean drawOffered = false;
-
-	
+	private static boolean drawOfferedByPlayer = false;
 
 	public static int positionsSPn = 16;
 	public static double tldSP = 3.4;
@@ -25,17 +26,19 @@ public class GameLogic {
 	public static int FUNCTION_CHOICE = 2;
 	public static int RESIGN_THRESHOLD = 3;
 	public static int DIST_THRESHOLD = 5;
-	public static int LINES_AMOUNT = 42;
-	public static int LINES_TOP = 16;
+	public static int LINES_AMOUNT = 16;
+	public static int LINES_TOP = 3;
 	
+	private static ArrayList<double[]> localH;
+	private static ArrayList<double[][]> localE;
+	private static ArrayList<double[][][]> localR;
+	private static ArrayList<double[][]> localHV;
+	private static ArrayList<double[][][]> localEV;
+	private static ArrayList<double[][][][]> localRV;
 	
-	private static double[] localSP;
-	private static int[][] localO;
-	private static double[] localEV;
-	private static double[][] localR;
-	private static double[][] localRV;
 	private static ComplexSystem c;
-	private static Piece[][][] localSPn;
+	private static int[][] localO;
+	private static boolean initialValues = false;
 	
 	
 	/*
@@ -62,19 +65,19 @@ public class GameLogic {
 	
 	public static void InitData() {
 		Random r = new Random();
-		
-		double[] initialValues = new double[26];
-		
-		//c = new ComplexSystem(RANDOMNESS_SOURCE, RANDOMNESS_LEVEL, FUNCTION_CHOICE);
-		//c.start();
-		
+
+		localE = new ArrayList<double[][]>();
+		localE.add(new double[3][26]);
+
 		for(int i = 0; i<26; i++) {
-			initialValues[i] = 6*r.nextDouble()-3;
+			for(int j = 0; j<3; j++) {
+				localE.get(0)[j][i] = 6*r.nextDouble()-3;
+			}
 		}
 
-		StandardPosition SP = new StandardPosition(initialValues);
 		o = new Objectives();
-		
+		//c = new ComplexSystem(RANDOMNESS_SOURCE, RANDOMNESS_LEVEL, FUNCTION_CHOICE);
+		//c.start();
 	}
 	
 	
@@ -85,45 +88,61 @@ public class GameLogic {
 	 * 
 	 */
 	
-	public static int[] Generate(Piece[][] board, int turnNumber, boolean white, int[] info) {
+	public static Message Generate(Piece[][] board, int turnNumber, boolean w, int[] i, BlockingQueue<Message> storage,boolean init) {
 		
+		white = w;
+		info = i;
 		
-		//measure
-		MeasureAllHeuristics(board,white,turnNumber);
+		Message element = null;
+		try {
+			if(!init) {
+				storage.put(new Message(null,"request P -> E"));
+				System.out.println("taking");
+				element = storage.take();
+				
+				if(element.getStatus().equals("draw requested by player")) {
+					drawOfferedByPlayer = true;
+				}
+				
+				System.out.println("element at generate: "+element);
+				localH = element.hs;
+				localE = element.es;
+				localR = element.rs;
+				localHV = element.hvs;
+				localEV = element.evs;
+				localRV = element.rvs;
+			
+				
+			}
+			else {
+				InitData();
+			}
+		} catch (InterruptedException e1) {
+			e1.printStackTrace();
+		}
+
+		//measure H
+		MeasureAllHeuristics(board,white);	
+		//get G
+		//TODO: MSystem.ComputeMetrics(board);	
+		//evaluate & find patterns
+		//double[][][] patterns = new double[26][][];
+		ArrayList<int[][]> lineStack = new ArrayList<int[][]>();
+		lineStack.add(search(board,turnNumber));
+
 		
 		/*
-		//evaluate
-		double[] evalValues = new double[26];
-		for(int i = 0; i<26; i++) {
-			evalValues[i] = evaluate(i+1, heuristics[i]);
+		for(int z = 0; z < LINES_AMOUNT; z++) {
+			lineStack.add(search(board,turnNumber));
 		}
+		*/
+
+		
+		/*
+		//TODO: pattern search(phase 3)
 		
 		
-		GameSystem.optimize(board, white, evalValues, c, o, p);
-		
-		
-		
-		 * 
-		 * 
-		 * 
-		 * 
-		 * 
-		 * 
-		 * 
-		//init board states
-		MSystem.ComputeMetrics(board);
-		
-		double[] diff = new double[26];
-		localSP = p.getSP();
-		
-		for(int i = 1; i<27; i++) {
-			diff[i-1] = (features.get(turnNumber)[i-1] - localSP[i-1]);
-		}
-		
-		localSPn = GameSystem.generateLines(diff,c,positionsSPn);
-		
-		//rank localSPn, get LINES_TOP amount of lines := localSPn, store rest in pipeline p, 
-		
+			
 		run lineConnect (possibly connectionSolver()) on localSPn
 		
 		adversary search
@@ -147,93 +166,254 @@ public class GameLogic {
 		final search, connections
 		rank lines by function a*SP + b*H + c*O
 		return first lines first move
-*/
+		
+		
+		
 
+
+		/* DATA STORING for the next turns
+		 * 
+		 * heuristics, evalValues, eval, 
+		 */
+		 
+		
+		try {
+			storage.put(new Message(localH,localE,localR,localHV,localEV,localRV,"send E -> P"));
+		} catch (InterruptedException e) {
+			
+			e.printStackTrace();
+		}
+		
+	
+		
+		/*
+		 * TEMPORARY: just returns a random legal move
+		 
 		
 		ArrayList<int[]> t = MGameUtility.getAllMoves(board, white, info);
 		
 		Random r = new Random();
+		*/
 		
+		String decision = "ready";
 		
-		
-		return t.get(r.nextInt(t.size()));
-		/*
-		
-		ArrayList<int[]> candidateMoves = run(board,turnNumber,white);
-		
-		if(calculateDiff(candidateMoves) < RESIGN_THRESHOLD) {
-			return new int[] {0};
+		if(calculateDiff(lineStack) < RESIGN_THRESHOLD) {
+			decision = "resign";
 		}
-		if(drawOffered) {
-			return new int[] {0,0};
+		else if(drawOffered) {
+			decision = "draw requested";
 		}
+		else if(drawOfferedByPlayer && drawOffered) {
+			decision = "draw accepted";
+		}
+		
+		
+		return new Message(null,lineStack.get(0)[0],
+				turnNumber,new int[] {-1,-1},decision);
+		
+		
+		
+		
 		
 		//fill arraylist, if generated list has a sum lower than certain %, post resign flag
 		//each move is in vector format of size 5: {sX,sY,tX,tY,%}
 		//sort arraylist according to % (ascending)
 
+//		
+//		
+//		int[] bestMove = candidateMoves.get(0);
+//		bestMove[0] = candidateMoves.get(0)[0];
+//		bestMove[1] = candidateMoves.get(0)[1];
+//		bestMove[2] = candidateMoves.get(0)[2];
+//		bestMove[3] = candidateMoves.get(0)[3];
+
 		
 		
-		int[] bestMove = candidateMoves.get(0);
-		bestMove[0] = candidateMoves.get(0)[0];
-		bestMove[1] = candidateMoves.get(0)[1];
-		bestMove[2] = candidateMoves.get(0)[2];
-		bestMove[3] = candidateMoves.get(0)[3];
-		 
+	}
+	
+	
+	private static int[][] search(Piece[][] pos, int t){
+		int depth = 1;
+		int[][] lineStack = new int[depth][];
+		ArrayList<int[]> moves;
+		Piece[][] posTemp = MGameUtility.cloneArray(pos);
+		Piece[][] posTemp2;
+		double[] d;
+		double sum = 0;
+		double rating = 0;
+		double maxRating = 0;
+		double[] evaluatedValues = new double[26];
+		int selected = 0;
+		ArrayList<Double> ratingList = new ArrayList<Double>();
+		ArrayList<Integer> ratedList = new ArrayList<Integer>();
+		ArrayList<double[]> valueList = new ArrayList<double[]>();
+		double[] evalC = new double[] {5.00, 1.5,  3.5, 3.20, 4.5, 3.0, 1.15, 5.2,  3.5,  0.1,
+									   0.35, 0.0, 25.0, 0.75, 6.0, 3.2, 4.50, 3.5, 32.0, 20.0,
+									   11,5,5,3,3,1};
 		
+		
+		for(int j = 0; j<depth; j++) {
+			//get moves for posTemp, initialized as pos, at the end, best move is made into posTemp
+			moves = MGameUtility.getAllMoves(posTemp, white, info);
+	
+			//go through all moves
+			for(int k = 0; k<moves.size(); k++) {
+				//make the move in posTemp2
+				posTemp2 = makeMove(moves.get(k),posTemp);
+				System.out.println();
+				//measure H
+				d = MeasureAllHeuristics(posTemp2, white);
+				//evaluate() gets three coefficient for a sin() function indexed by heuristic index (1..26), computes sin(), and subtracts
+				//from actual heuristic value
+				for(int i = 0; i<26; i++) {
+					evaluatedValues[i] = Math.abs(evalC[i] - d[i]);
+					//evalValues[i] = evaluate(i+1, t, localE.get(0)) - d[i];
+					sum += evaluatedValues[i];
+					System.out.println("sum "+sum);
+					//patterns[i] = Character.mine(i+1, Math.signum(evalValues[i]),evalValues[i],element);
+				}
+
+				rating = sum/26.0;
+				ratingList.add(rating);
+				valueList.add(ValueFunction.computeValue(posTemp2, white, info));
+				System.out.println("move: "+Arrays.toString(moves.get(k))+" rating "+rating);
+				
+				sum = 0;
+
+			}
+			
+			maxRating = ratingList.get(0);
+			
+			for (int i = 0; i < ratingList.size(); i++) {
+				
+				//lower is better
+				if(ratingList.get(i) < maxRating) {
+					maxRating = ratingList.get(i);
+					selected = i;
+				}
+				
+				
+			}
+			ratedList.add(selected);
+
+			
+			
+			
+			System.out.println("best move:"+Arrays.toString(moves.get(ratedList.get(0))));
+			//make the best move in posTemp
+			posTemp = makeMove(moves.get(selected),posTemp);
+			
+			//store at lineStack
+			lineStack[j] = moves.get(ratedList.get(0));
+		}
 
 		
 		
 		
-		return bestMove; 
 		
 		
+		return lineStack;
 		
-		
-		*/
 	}
 	
+	
+	public static Piece[][] makeMove(int[] move, Piece[][] b){
+		Piece[][] board = MGameUtility.cloneArray(b);
+		int result = move[4];
+		int sx = move[0], sy = move[1], tx = move[2], ty = move[3];
+		
+		if(result == 7) {
+			board[0][5] = board[0][7];
+			board[0][5] = null;
+			board[0][6] = board[0][4];
+			board[0][4] = null;
+		}
+		else if(result == 8) {
+			board[0][3] = board[0][0];
+			board[0][0] = null;
+			board[0][2] = board[0][4];
+			board[0][4] = null;
+		}
+		else if(result == 9) {
+			board[7][5] = board[7][7];
+			board[7][7] = null;
+			board[7][6] = board[7][4];
+			board[7][4] = null;
+		}
+		else if(result == 10) {
+			board[7][3] = board[7][0];
+			board[7][0] = null;
+			board[7][2] = board[7][4];
+			board[7][4] = null;
+		}
+		else if(result == 11) {
+			board[tx][ty] = board[sx][sy];
+			board[sx][sy] = null;
+			board[sx][ty] = null;
+		}
+		else if(result == 12) {
+			//TODO: =?
+		}
+		else {
+			board[tx][ty] = board[sx][sy];
+			board[sx][sy] = null;
+		}
+		
+		
+		if(result == 13 || result == 14) {
+			//TODO: enpassant square created
+		}
+		else if(result != 13 && result != 14) {
+			//TODO: enpassant square cleared
+		}
+	
+		return board;
+		
+	}
 	
 	/*
 	 * measure position
 	 */
 	
-	private static void MeasureAllHeuristics(Piece[][] board, boolean white, int turnNumber) {
-	
+	private static double[] MeasureAllHeuristics(Piece[][] board, boolean white) {
+		
+		double[] heuristics = new double[26];
 		
 		PositionFeature p = new PositionFeature(board, white);
 
-		heuristics[0] = PositionFeature.RelM();
-		heuristics[1] = PositionFeature.RelMAVG();
-		heuristics[2] = PositionFeature.RelMV();
-		heuristics[3] = PositionFeature.RelPVAVG();
-		heuristics[4] = PositionFeature.BestPiece();
-		heuristics[5] = 0;
-		heuristics[6] = PositionFeature.DistanceFromDefaultRelativeToEnemy();
-		heuristics[7] = PositionFeature.MinDistKing_Enemy();
-		heuristics[8] = PositionFeature.MinDistKing_Own();
-		heuristics[9] = PositionFeature.PercentThreat_Own();
-		heuristics[10] = PositionFeature.PercentThreat_Enemy();
-		heuristics[11] = PositionFeature.TradeEfficiency();
-		heuristics[12] = PositionFeature.OpenSquareCount();
-		heuristics[13] = PositionFeature.PercentDefended();
-		heuristics[14] = PositionFeature.MostSquaresAvailableForPiece();
-		heuristics[15] = PositionFeature.MostDefensesForPiece();
-		heuristics[16] = PositionFeature.MostFreeSquaresForPiece();
-		heuristics[17] = PositionFeature.MostSquaresSafeForPiece();
-		heuristics[18] = PositionFeature.CountAllAvailableSquares();
-		heuristics[19] = PositionFeature.CountAllFreeSquares();
-		heuristics[20] = PositionFeature.CountAllSafeSquares();
-		heuristics[21] = PositionFeature.LongestChainOfDefenses();
-		heuristics[22] = PositionFeature.ChainBranching();
-		heuristics[23] = PositionFeature.CountDefenseLoops();
-		heuristics[24] = PositionFeature.PositionComplexity();
-		heuristics[25] = PositionFeature.ComplexityRatio();
+		heuristics[0] = p.RelM();
+		heuristics[1] = p.RelMAVG();
+		heuristics[2] = p.RelMV();
+		heuristics[3] = p.RelPVAVG();
+		heuristics[4] = p.BestPiece();
+		heuristics[5] = p.LongestPawnChain();
+		heuristics[6] = p.DistanceFromDefaultRelativeToEnemy();
+		heuristics[7] = p.MinDistKing_Enemy();
+		heuristics[8] = p.MinDistKing_Own();
+		heuristics[9] = p.PercentThreat_Own();
+		heuristics[10] = p.PercentThreat_Enemy();
+		heuristics[11] = p.TradeEfficiency();
+		heuristics[12] = p.OpenSquareCount();
+		heuristics[13] = p.PercentDefended();
+		heuristics[14] = p.MostSquaresAvailableForPiece();
+		heuristics[15] = p.MostDefensesForPiece();
+		heuristics[16] = p.MostFreeSquaresForPiece();
+		heuristics[17] = p.MostSquaresSafeForPiece();
+		heuristics[18] = p.CountAllAvailableSquares();
+		heuristics[19] = p.CountAllFreeSquares();
+		heuristics[20] = p.CountAllSafeSquares();
+		heuristics[21] = p.LongestChainOfDefenses();
+		heuristics[22] = p.ChainBranching();
+		heuristics[23] = p.CountDefenseLoops();
+		heuristics[24] = p.PositionComplexity();
+		heuristics[25] = p.ComplexityRatio();
 		
-		PositionFeature.flushArrays();
+		PositionFeature.reset();
 		
 		
 		System.out.println(Arrays.toString(heuristics));
+		
+		return heuristics;
 	}
 	
 	
@@ -243,94 +423,77 @@ public class GameLogic {
 		
 		switch(h) {
 		case 1:
-			return PositionFeature.RelM();
+			return p.RelM();
 		case 2:
-			return PositionFeature.RelMAVG();
+			return p.RelMAVG();
 		case 3:
-			return PositionFeature.RelMV();
+			return p.RelMV();
 		case 4:
-			return PositionFeature.RelPVAVG();
+			return p.RelPVAVG();
 		case 5:
-			return PositionFeature.BestPiece();
-		//case 6:
-			
+			return p.BestPiece();
+		case 6:
+			return p.LongestPawnChain();
 		case 7:
-			return PositionFeature.DistanceFromDefaultRelativeToEnemy();
+			return p.DistanceFromDefaultRelativeToEnemy();
 		case 8:
-			return PositionFeature.MinDistKing_Enemy();
+			return p.MinDistKing_Enemy();
 		case 9:
-			return PositionFeature.MinDistKing_Own();
+			return p.MinDistKing_Own();
 		case 10:
-			return PositionFeature.PercentThreat_Own();
+			return p.PercentThreat_Own();
 		case 11:
-			return PositionFeature.PercentThreat_Enemy();
+			return p.PercentThreat_Enemy();
 		case 12:
-			return PositionFeature.TradeEfficiency();
-		case 13://TODO:
-			return PositionFeature.OpenSquareCount();
+			return p.TradeEfficiency();
+		case 13:
+			return p.OpenSquareCount();
 		case 14:
-			return PositionFeature.PercentDefended();
+			return p.PercentDefended();
 		case 15:
-			return PositionFeature.MostSquaresAvailableForPiece();
+			return p.MostSquaresAvailableForPiece();
 		case 16:
-			return PositionFeature.MostDefensesForPiece();
+			return p.MostDefensesForPiece();
 		case 17:
-			return PositionFeature.MostFreeSquaresForPiece();
+			return p.MostFreeSquaresForPiece();
 		case 18:
-			return PositionFeature.MostSquaresSafeForPiece();
+			return p.MostSquaresSafeForPiece();
 		case 19:
-			return PositionFeature.CountAllAvailableSquares();
+			return p.CountAllAvailableSquares();
 		case 20:
-			return PositionFeature.CountAllFreeSquares();
+			return p.CountAllFreeSquares();
 		case 21:
-			return PositionFeature.CountAllSafeSquares();
+			return p.CountAllSafeSquares();
 		case 22:
-			return PositionFeature.LongestChainOfDefenses();
+			return p.LongestChainOfDefenses();
 		case 23:
-			return PositionFeature.ChainBranching();
+			return p.ChainBranching();
 		case 24:
-			return PositionFeature.CountDefenseLoops();
+			return p.CountDefenseLoops();
 		case 25:
-			return PositionFeature.PositionComplexity();
+			return p.PositionComplexity();
 		case 26:
-			return PositionFeature.ComplexityRatio();
+			return p.ComplexityRatio();
 		}	
 		return 0;
 	}
 	
 	
 
-	private static double calculateDiff(ArrayList<int[]> candidateMoves) {
+	private static double calculateDiff(ArrayList<int[][]> candidateMoves) {
 		
 		int sum = 0;
 		
 		for (int i = 0; i < candidateMoves.size(); i++) {
-			sum += candidateMoves.get(i)[4];
+			for(int j = 0; j < candidateMoves.get(i)[0].length; j++) {
+				sum += candidateMoves.get(i)[j][5];
+			}
 		}
 		
 		return (1.0*sum) / candidateMoves.size();
 		
 	}
 
-
-
-
-	/**
-	 * Evaluate the  board:
-	 * 
-	 * <li> Init PositionFeature, then call writeAll() to write all current feature states to disk
-	 * <li> Use eval. functions in EvalutionFunction to compute distances from optimum state
-	 * <li> Use StochasticSystem to generate optimal solution fulfilling criterias of <b>closeness to optimal state,
-	 * closeness to current state</b>, output progressions
-	 * <li> go through randomized data in progression to get graphs of features over time and relations between them
-	 * <li> compare their connection against the value functions in ValueFunction, get tuning constants
-	 * <li> apply fine.tuned eval. functions, relation importance constants, importances of features
-	 * <li> save above to disk
-	 * <li>
-	 *
-	 */
-
-	
 	
 	
 	/*
@@ -343,20 +506,16 @@ public class GameLogic {
 		return false;
 	}
 	
-		
 
-	
-	
-	
-	private static double evaluate(int heuristic, double value) {
+	private static double evaluate(int heuristic, int turn, double[][] evalConst) {
 		
 		//a*sin(b*x + c)
 		
-		double a = eval[0][heuristic];
-		double b = eval[1][heuristic];
-		double c = eval[2][heuristic];
+		double a = evalConst[0][heuristic-1];
+		double b = evalConst[1][heuristic-1];
+		double c = evalConst[2][heuristic-1];
 		
-		return a*Math.sin(b*value + c);
+		return a*Math.sin(b*turn + c);
 		
 		
 		

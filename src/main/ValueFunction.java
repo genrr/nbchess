@@ -8,6 +8,7 @@ public class ValueFunction {
 	public static int avgSq = 2;
 	public static int avgAtt = 1;
 	public static int avgDef = 2;
+	private static int[] pieceInfo = null;
 	
 	/*
 	 * #1 safe squares around king (safety)
@@ -20,16 +21,18 @@ public class ValueFunction {
 	 *
 	 */
 	
-	public static double computeValue(int index,Piece[][] board,boolean whitesTurn) {
+	public static double[] computeValue(Piece[][] board,boolean whitesTurn, int[] ti) {
+		pieceInfo = ti;
+		double[] values = new double[5];
 		
 		double n = 0.0;
 		double threatMultSum = 0.0;
-		int[] t = RuleSet.ReturnKingAndRookPositions(board, whitesTurn);
+		int[] t = MGameUtility.getKingPos(board, whitesTurn);
 		ArrayList<Piece> enemyPieces = MGameUtility.ReturnAllPieces(board, !whitesTurn);
 		ArrayList<Piece> ownPieces = MGameUtility.ReturnAllPieces(board, whitesTurn);
 		ArrayList<int[]> ks;
-		switch(index) {
-		case 1: //kings safe squares
+
+		//kings safe squares
 			int temp;
 			ks = RuleSet.GetKingsSquares(t[0], t[1]);
 			n = ks.size();
@@ -48,11 +51,11 @@ public class ValueFunction {
 				}
 			}
 			//e.g 6 - (1.83)² ~ 2.63
-			return n - Math.pow(threatMultSum,2);
+			values[0] = n - Math.pow(threatMultSum,2);
 			
 			
 			
-		case 2: //sum of all own pieces' distance to enemy king
+			//sum of all own pieces' distance to enemy king
 			
 			int eKingX = t[2];
 			int eKingY = t[3];
@@ -63,19 +66,24 @@ public class ValueFunction {
 				sum += MGameUtility.distance(board, piece, piece.getX(), piece.getY(), t[2], t[3], false);
 			}
 			
-			return sum;
+			values[1] = sum;
 			
 			
 			
 			
-		case 3: //sum of all squares within 1
+			//sum of all squares within 1
 			int count = 0;
 			
 			for(int i = 0; i<8; i++) {
 				for(int j = 0; j<8;j++) {
 					for (Piece piece : ownPieces) {
+						//castling not counted
 						if(MGameUtility.distance(board, piece, piece.getX(), piece.getY(),
 								i,j, false) == 1) {
+							//enpassant square found
+							if(pieceInfo[6] != -1) {
+								count++;
+							}
 							count++;
 						}
 					}
@@ -83,11 +91,11 @@ public class ValueFunction {
 			}
 			
 			
-			return count;
-		case 4:
-			return MoveEntropy(board,whitesTurn) / MoveEntropy(board,!whitesTurn);
+			values[2] = count;
+
+			values[3] = MoveEntropy(board,whitesTurn) / MoveEntropy(board,!whitesTurn);
 			
-		case 5:
+
 			int sqCount = 0;
 			int maxSqCount = 0;
 			int adjSqCount = 0;
@@ -137,14 +145,10 @@ public class ValueFunction {
 			}
 			//return value (emphasizing on) max squares
 			//+ adjusted squares + adjusted attacks + adjusted defences
-			return maxSqCount + sumAdjSqCount + sumAdjAtt + sumAdjDef; 
-			
-			
-		}
+			values[4] = maxSqCount + sumAdjSqCount + sumAdjAtt + sumAdjDef; 
+
 		
-		return 0;
-		
-		
+			return values;
 	}
 	
 	/*
@@ -159,7 +163,7 @@ public class ValueFunction {
 	
 	private static double MoveEntropy(Piece[][] board, boolean white) {
 		
-		ArrayList<int[]> list1 = MGameUtility.getAllMoves(board, white);
+		ArrayList<int[]> list1 = MGameUtility.getAllMoves(board, white, pieceInfo);
 		
 		Piece[][] newBoard = MGameUtility.cloneArray(board);
 
@@ -170,10 +174,10 @@ public class ValueFunction {
 			newBoard[list1.get(i)[2]][list1.get(i)[3]] = newBoard[list1.get(i)[0]][list1.get(i)[1]];
 			newBoard[list1.get(i)[0]][list1.get(i)[1]] = null;
 			
-			double v1 = computeValue(1, newBoard, white) / 8.0;
-			double v2 = computeValue(2, newBoard, white) / list1.size();
-			double v3 = computeValue(3, newBoard, white) / 6.0;
-			double v5 = computeValue(5, newBoard, white) / 5.5;
+			double v1 = computeValue(newBoard, white,pieceInfo)[0] / 8.0;
+			double v2 = computeValue( newBoard, white,pieceInfo)[1] / list1.size();
+			double v3 = computeValue( newBoard, white,pieceInfo)[2] / 6.0;
+			double v5 = computeValue( newBoard, white,pieceInfo)[4] / 5.5;
 			
 			valueSum += (v1+v2+v3+v5) / 4.0;
 		}
@@ -185,22 +189,22 @@ public class ValueFunction {
 	}
 	
 	
-	public static boolean valuesCheck(Piece[][] pos, boolean white, double[] qualityValues) {
-		double v1 = computeValue(1, pos, white);
+	public static boolean normalize(Piece[][] pos, boolean white, double[] v, double[] qualityValues) {
+		double v1 = v[0];
 		
 		v1 /= 8.0;
 		
-		double v2 = computeValue(2,pos,white);
+		double v2 = v[1];
 		
 		v2 /= MGameUtility.ReturnAllPieces(pos, white).size();
 		
-		double v3 = computeValue(3,pos,white);
+		double v3 = v[2];
 		
 		v3 /= 6.0;
 		
-		double v4 = computeValue(4,pos,white);
+		double v4 = v[3];
 		
-		double v5 = computeValue(4,pos,white);
+		double v5 = v[4];
 		
 		v5 /= 5.5;
 		

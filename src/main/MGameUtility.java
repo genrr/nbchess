@@ -13,28 +13,31 @@ public class MGameUtility {
 	private static Path[] pathVector = new Path[10];
 	private static Piece[][] board = null;
 	static double[][] evalMatrix = new double[8][8];
+	private static boolean defend;
 
 
 	
 	
 public static int distance(Piece[][] b, Piece piece, int startX, int startY, int targetX, int targetY,boolean eval) {
-	
+
+	defend = false;
 	boolean canMoveDiagonally = false;
 	board = b;
 	int dist = 0;
 	
 	//System.out.println("testing distance between: "+piece.getName()+" at ("+piece.getX()+","+piece.getY()+") -> ("+targetX+","+targetY+")");
 	
-	// sX == tX && sY == tY, same square, return 1 for use in other functions, although technically,
-	// distance != 1
+	// sX == tX && sY == tY, same square, return 0
 	if(startX == targetX && startY == targetY) {
-		return 1; 
+		return 0; 
 	}
-	
 
 	
 	if(piece.getName().contains("knight")) {
 		dist = KnightMoveDist(startX,startY,targetX,targetY);
+		if(dist == 1 && board[targetX][targetY] != null && board[targetX][targetY].getColor() == piece.getColor()) {
+			return -1;
+		}
 	}
 	else if(piece.getName().contains("bishop")) {
 		dist = BishopMoveDist(startX,startY,targetX,targetY);
@@ -44,42 +47,46 @@ public static int distance(Piece[][] b, Piece piece, int startX, int startY, int
 	}
 	else if(piece.getName().contains("pawn")) {
 		
-			
 		int[] p = RuleSet.nettyPater(startX, startY, targetX, targetY);
-		
-		
+
 		//target square is diagonal
 		if((piece.getColor() && ((p[0] == -1 && p[1] == 1) || (p[0] == -1 && p[1] == -1))) ||
 		  (!piece.getColor() && ((p[0] == 1 && p[1] == -1) || (p[0] == 1 && p[1] == 1)))) {
 			
 			if(board[targetX][targetY] != null) {
+				// 0  p  0		0  p  0
+				// 1  1  1		1  1  1
+				// 2  2  2		2  1  2
 				canMoveDiagonally = true;
+				
+				//pawn defends a piece
+				if(board[targetX][targetY].getColor() == piece.getColor()) {
+					//defending own piece, return -1
+					return -1;
+					
+				}
+
 			}
 			else {
 				//canMoveDiagonally == false
-				//
-				// 0  0  0
-				//-2  1 -2
-				// 2  2  2
-				
+				// 0  p  0		0  p  0
+				//-2  1 -2	   -2  1 -2
+				// 2  2  2		2  1  2
 				return -2;
 			}
-			
-			
+		
 		}
-			
-			
-			
-		
-		
+	
 		dist = PawnMoveDist(piece,startX,startY,targetX,targetY,canMoveDiagonally);
 		
-		//if distance is one && target square is not empty && not diagonal -> pawn cannot move to target, return 0
+		//pawns cannot capture forwards
 		if(dist == 1 && board[targetX][targetY] != null && targetY == startY) {
-
+			// 0  p  0		0  p  0
+			// 1  @  1		1  @  1
+			// 0  0  0		0  0  0
 			return 0;
-
 		}
+
 		
 	}
 	else if(piece.getName().contains("queen")) {
@@ -87,6 +94,9 @@ public static int distance(Piece[][] b, Piece piece, int startX, int startY, int
 	}
 	else if(piece.getName().contains("king")) {
 		dist = KingMoveDist(startX,startY,targetX,targetY);
+		if(dist == 1 && board[targetX][targetY] != null && board[targetX][targetY].getColor() == piece.getColor()) {
+			return -1;
+		}
 	}
 	
 	if(eval) {
@@ -96,8 +106,7 @@ public static int distance(Piece[][] b, Piece piece, int startX, int startY, int
 	//System.out.println("dist for "+piece.getName()+"from ("+startX+ ","+ startY +
 	//		") -> ("+targetX+","+targetY+") = "+dist);
 	
-	//defending own piece, return -1 (only 1-distance moves)
-	if(dist == 1 && b[targetX][targetY] != null && b[targetX][targetY].getColor() == piece.getColor()){
+	if(defend && dist == 1) {
 		return -1;
 	}
 	
@@ -126,6 +135,7 @@ private static int KnightMoveDist(int X, int Y,int tX,int tY) {
 			  		{4,5,4,3,4,3,4,3,4,3,4,3,4,5,4},
 			  		{5,4,5,4,3,4,3,4,3,4,3,4,5,4,5},
 			  		{6,5,4,5,4,5,4,5,4,5,4,5,4,5,6}};
+	
 	
 
 	return mm[7+(X-tX)][7+(Y-tY)];
@@ -616,19 +626,34 @@ public static boolean CheckInBetween(int X, int Y, int tX, int tY){
 			if(board[t1][t2].getColor() != board[X][Y].getColor() && board[t1][t2].getName().contains("king")) {
 				continue;
 			}
-			
-			//own blocking piece along the line
+				
 			if(board[X][Y].getColor() == board[t1][t2].getColor()) {
-				return true;
+				//own blocking piece along the line
+				if((t1 != tX || t2 != tY)) {
+					//System.out.println("own piece between");
+					return true;
+				}
+				//own piece at end, can move, set defending flag
+				else {
+					defend = true;
+					//System.out.println("defend");
+					return true;
+				}
+				
 			}
-			//enemy piece blocking the way
-			else if(t1 != tX || t2 != tY){
-				return true;
-			}
-			//enemy piece at the end
 			else {
-				return false;
+				//enemy piece blocking the way
+				if(t1 != tX || t2 != tY){
+					//System.out.println("enemy blocking between");
+					return true;
+				}
+				//enemy piece at the end, can capture
+				else {
+					//System.out.println("capture at the end");
+					return false;
+				}
 			}
+			
 		}
 		
 	}
@@ -762,6 +787,22 @@ public static ArrayList<int[]> PaintLastMove(Piece[][] board, int X, int Y, int 
 	}
 	
 	
+	public static int[] getKingPos(Piece[][] board,boolean turn) {
+		int[] t = new int[2];
+		
+		for(int i = 0; i<8; i++) {
+			for(int j = 0; j<8; j++) {
+				if(board[i][j] != null && board[i][j].getName().contains("king")) {
+					if(board[i][j].getColor() == turn) {
+						t[0] = i;
+						t[1] = j;				
+					}
+				}
+			}
+		}
+		
+		return t;
+	}
 	
 	public static Piece[][] generatePos(Piece[][] board, ArrayList<Piece> pieces1, ArrayList<Piece> pieces2, int k0, double[] diff, Objectives O, int optimizationLevel){
 		
