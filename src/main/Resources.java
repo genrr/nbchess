@@ -45,23 +45,23 @@ public class Resources {
 		
 	}
 	
-	public static String calculateHash(Piece[][] pos) {
+	public static String calculateHash(int[][][] pos) {
 		//TODO: convert Piece[][] matrix into 64-length array into id string,
 		//hash 
 		//send hash back to caller
 		
-		int[] t = new int[64];
+		int[] t = new int[72];
 		String hash = "";
 		int i = 0;
 		
-		for (Piece[] pieceColumn : pos) {
-			for (Piece piece : pieceColumn) {
+		for (int[][] pieceColumn : pos) {
+			for (int[] piece : pieceColumn) {
 				if(piece == null) {
 					t[i] = 10;
 				}
 				else {
 					
-					t[i] = piece.getId();
+					t[i] = piece[0];
 				}
 				i++;
 			}

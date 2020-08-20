@@ -35,9 +35,9 @@ public class Pipeline extends Thread{
 	Piece[][][] lines;
 	
 	private BlockingQueue<Message> queue;
-	private boolean color;
+	private int color;
 	
-	public Pipeline(BlockingQueue<Message> queue,boolean color) {
+	public Pipeline(BlockingQueue<Message> queue,int color) {
 		this.queue = queue;
 		this.color = color;
 	}
@@ -45,12 +45,23 @@ public class Pipeline extends Thread{
 	
 	public void run() {
 		
-		Message element;
+		Message element = new Message(null,"temp");
 		
 		do {
 			try {
-				element = queue.take();
-				System.out.println("somthing, "+element.getStatus()+" in queue");
+				if(queue.peek() != null) {
+					element = queue.peek();
+					
+					try {
+						if(!queue.peek().getStatus().contentEquals("send P -> E")) {
+							element = queue.take();
+						}
+					} catch (Exception e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+				System.out.println("something in queue: "+element.getStatus());
 				
 				if(element.getStatus().contentEquals("send E -> P")) {
 					heurStorage = element.hs;
@@ -63,7 +74,6 @@ public class Pipeline extends Thread{
 				else if(element.getStatus().contentEquals("request P -> E")) {
 					queue.put(new Message(heurStorage,evalStorage,relStorage,
 							heurValStorage,evalValStorage,relValStorage,"send P -> E"));
-					Thread.sleep(1000);
 				}
 				else if(element.getStatus().contentEquals("exit")) {
 					System.out.println("exiting pipeline..");

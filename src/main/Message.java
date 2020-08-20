@@ -4,7 +4,7 @@ import java.util.ArrayList;
 
 public class Message {
 	
-	private Piece[][] pos;
+	private int[][][] pos;
 	private int turnNo;
 	private String status;
 	private int[] move;
@@ -17,12 +17,11 @@ public class Message {
 	ArrayList<double[][][]> evs;
 	ArrayList<double[][][][]> rvs;
 	
-	public Message(Piece[][] pos,int[] move, int turnNo, int[] piecesInfo, String status) {
+	public Message(int[][][] pos,int[] move, int turnNo,String status) {
 		this.pos = pos;
 		this.move = move;
 		this.turnNo = turnNo;
 		this.status = status;
-		this.piecesInfo = piecesInfo;
 	}
 	
 	public Message(ArrayList<double[]> t, ArrayList<double[][]> t2, ArrayList<double[][][]> t3, ArrayList<double[][]> t4,
@@ -44,7 +43,7 @@ public class Message {
 	}
 
 	
-	public Piece[][] getBoardData() {
+	public int[][][] getBoardData() {
 		return pos;
 	}
 	

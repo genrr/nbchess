@@ -14,7 +14,7 @@ import java.util.ArrayList;
 
 public class Engine extends Thread {
 
-	Piece[][] data;
+	int[][][] data;
 	int turnNumber = 0;
 	int[] info;
 	private static boolean alreadyStarted = false;
@@ -48,11 +48,12 @@ public class Engine extends Thread {
 	
 	private BlockingQueue<Message> queue;
 	private BlockingQueue<Message> queue2;
-	private boolean color;
-	private Message move;
+	private int color;
+	private Message engineOutput;
+	StochasticSystem c;
 	private boolean drawOfferedByPlayer;
 	
-	public Engine(BlockingQueue<Message> q, boolean color) {
+	public Engine(BlockingQueue<Message> q, int color) {
 		this.queue = q;
 		this.color = color;
 	}
@@ -69,26 +70,29 @@ public class Engine extends Thread {
 			try {
 				element = queue.peek();
 				
+				if(element == null) {
+					continue;
+				}
+
 				if(element.getStatus().equals("request")) {
 					element = queue.take();				
 					data = element.getBoardData();
-					turnNumber = element.getTurnNumber();
-					info = element.getPiecesInfo();					
+					System.out.println("board: "+data);
+					turnNumber = element.getTurnNumber();				
 
 					//run these once at the start 
 					if(!alreadyStarted) {
 						queue2 = new ArrayBlockingQueue<Message>(1);
 						Pipeline storage = new Pipeline(queue2,color);
+						c = new StochasticSystem();
 						storage.start();
-
 						alreadyStarted = true;
-						move = GameLogic.Generate(data,turnNumber,color, info,queue2,true);
+						engineOutput = GameLogic.Generate(data,turnNumber,color,queue2,c);
 					}	
 					else {
-						move = GameLogic.Generate(data,turnNumber,color, info,queue2,!alreadyStarted);
+						engineOutput = GameLogic.Generate(data,turnNumber,color,queue2,c);
 					}
-					
-					queue.put(move);
+					queue.put(engineOutput);
 					Platform.runLater(new Runnable() {
 						public void run() {
 							Board.moveReady.set(true);
@@ -105,13 +109,12 @@ public class Engine extends Thread {
 					//shut down this thread
 					break;
 				}
+
 			}
 			catch(InterruptedException e) {
 				e.printStackTrace();
 			}
-			catch(NullPointerException n) {
-				continue;
-			}
+
 
 				
 		} while (true);

@@ -33,19 +33,19 @@ public class Objectives {
 	private static int[][] objectiveList;
 	private static int[] piecesOwn = {11,12,13,14,15,16};
 	private static int[] piecesOpponent = {18,19,20,21,22,23};
+	private static int[] counters = {1,1,10,5,64};//{drawCounter, captureCounter, confusionCounter,
+	//objectiveFailCounter, resignCounter}
 	
 	public static int[][] init(int k) {
 		int temp;
 		Random r = new Random();
 		
 		objectiveList = new int[k][3];
-		
-		
-		
+	
 		for(int i = 0; i<k; i++) {
 			temp = r.nextInt(9) + 1;
+			
 			if(temp == 1) {
-
 				objectiveList[i] = new int[] {piecesOwn[r.nextInt(6)], r.nextInt(2), piecesOpponent[r.nextInt(6)]};
 			}
 			else if(temp == 2) {
@@ -85,5 +85,8 @@ public class Objectives {
 		
 	}
 	
+	public int[] getCounters() {
+		return counters;
+	}
 	
 }

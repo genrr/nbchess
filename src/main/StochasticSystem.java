@@ -23,18 +23,18 @@ public class StochasticSystem extends Thread{
 	private static int modInt2 = 97;
 	
 	private static int startX = 57;
-	
-	//--
-	
+		
 	private static double[] SP = new double[26];
 	
 	
 	
-	/*
+	
+	
 	public void run() {
-		System();
+		updateCorrelations();
 	}
 	
+	/*
 	private static void System() {
 //		while(Engine.isGameRunning()) {
 //		startX++;
@@ -57,7 +57,7 @@ public class StochasticSystem extends Thread{
 	
 	
 	
-	public static void initSystem(int rngSource,int rndLevel,int function) {
+	public void initSystem(int size, int rngSource,int rndLevel,int function) {
 		
 		int t = 0;
 		
@@ -65,18 +65,52 @@ public class StochasticSystem extends Thread{
 			SP[t] = get(rngSource);
 			t++;
 		}
-		
-		
-		
+
 	}
+	
+	/*
+	 * Tries to update SP[i] in such a way, that correlation between {SP[i],newValue} and
+	 *  {values[i][0],values[i][1]} >= 0.6
+	 */
+	
+	public void updateCorrelations(double[][] values) {
+				
+				
+		for(int i = 0; i<26; i++) {
+			int t = 0;
+			double n = get(1);
+			
+			while   ((MGameUtility.correlation(new double[]{values[0][0],values[0][1]}, 
+							new double[] {SP[i],n}) < 0.6) || 
+					(MGameUtility.correlation(new double[]{values[1][0],values[1][1]}, 
+							new double[] {SP[i],n}) < 0.6) ||
+					(MGameUtility.correlation(new double[]{values[2][0],values[2][1]}, 
+							new double[] {SP[i],n}) < 0.6) ||
+					(MGameUtility.correlation(new double[]{values[3][0],values[3][1]}, 
+							new double[] {SP[i],n}) < 0.6) ||
+					(MGameUtility.correlation(new double[]{values[4][0],values[4][1]}, 
+							new double[] {SP[i],n}) < 0.6) ||
+					t > 256) {
+				
+				n = get(get(2*t++) % 5);
+				t++;
+			}
+			if(t != 257) {
+				SP[i] = n;
+			}
+			
+			
+			
+		}
+ 	}
 	
 	public static void inputDiffs(double[][] data) {
 		
 	}
 	
 	
-	private static double get(int source) {
-		switch(source) {
+	private static double get(double source) {
+		switch((int)(source)) {
 		case 0:
 			return sineImpl(startX);
 		case 1:
@@ -185,6 +219,25 @@ public class StochasticSystem extends Thread{
 		
 		
 		
+	}
+	
+	
+	private double[] generate() {
+		double angle = 0.35;
+		int b = 13841421;
+		double t = 2;
+		
+		for (int i = 0; i < SP.length; i++) {
+			while(b % (t+1) - t*angle != 0) {
+				t++;
+				System.out.println(t);
+			}
+			SP[i] = t / (b % (t+1));
+			angle = (angle + Math.PI) % 1.0;
+			t = 2;
+		}
+		
+		return SP;
 	}
 	
 	public static double getNoise(double value) {

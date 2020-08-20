@@ -39,25 +39,24 @@ import java.util.concurrent.BlockingQueue;
 public class Board extends Application {
 
 	private static Engine mayflower;	
-	private static Piece[][] board = new Piece[8][8];
+	private static int[][][] board = new int[9][8][];
 	private static ArrayList<String> posList = new ArrayList<String>();
 	//public Piece[] pieces = new Piece[32];
 	public int moveCounter = 0;
 	
-	private int maxID = 42;
+	private static int maxID = 42;
 	private static int turnsWoPMOrC = 0; 
 	private static boolean drawOfferedByBot = false;
-	private static int[] boardPiecesInfo = new int[8];
 	private static boolean gameRunning = false;
 	private static boolean freePlay = true;
 	private static boolean moving = false;
 	private static SimpleIntegerProperty halfTurns  = new SimpleIntegerProperty(-1);
 	private static SimpleIntegerProperty fullTurns  = new SimpleIntegerProperty(1);
 	public static SimpleBooleanProperty moveReady = new SimpleBooleanProperty(false);
-	private static boolean currentTurn;
+	private static int currentTurn;
 	private static boolean isDefaultBoardRotation = true;
-	private static boolean PlayerColor;
-	private static boolean BotColor;
+	private static int PlayerColor;
+	private static int BotColor;
 	private static BlockingQueue<Message> queue = new ArrayBlockingQueue<>(1);
 
 	private static ScrollPane consoleContainer = new ScrollPane();
@@ -104,10 +103,18 @@ public class Board extends Application {
 		Button drawButton = new Button("Offer draw");
 		Button rotateButton = new Button("Rotate board");
 		Button colorButton = new Button("Change color scheme");
+		Button leftButton = new Button("<-");
+		Button rightButton = new Button("->");
 		Button exitButton = new Button("Exit");
 		exitButton.setAlignment(Pos.TOP_RIGHT);
 		HBox initButtonContainer = new HBox();
+		HBox arrowButtonContainer = new HBox();
+		leftButton.setPrefSize(70, 70);
+		rightButton.setPrefSize(70, 70);
+		arrowButtonContainer.setPrefHeight(100);
+		arrowButtonContainer.setAlignment(Pos.CENTER);
 		initButtonContainer.getChildren().addAll(startButton,loadButton);
+		arrowButtonContainer.getChildren().addAll(leftButton,rightButton);
 
 		HBox functionSettingsContainer = new HBox();
 		HBox.setMargin(colorButton,new Insets(25.0,10.0,50.0,10.0));
@@ -127,7 +134,6 @@ public class Board extends Application {
 		
 		//console.setPrefSize(250, 550);
 		//console.autosize();
-		System.out.println(console.getLayoutBounds().toString());
 		consoleContainer.setContent(console);
 		Label turnLabel = new Label("");
 		turnLabel.setPrefSize(250,50);
@@ -167,7 +173,7 @@ public class Board extends Application {
 					}
 
 
-					Message msg = new Message(board,null,temp,boardPiecesInfo,"request");	
+					Message msg = new Message(board,null,temp,"request");	
 					try {
 						queue.put(msg);
 					}
@@ -186,7 +192,9 @@ public class Board extends Application {
 			if(newValue) {
 				System.out.println("move ready!");
 				try {
+					System.out.println(queue.size());
 					receiveMove(queue.take());
+					
 				} catch (InterruptedException e1) {
 					e1.printStackTrace();
 				}
@@ -222,11 +230,13 @@ public class Board extends Application {
 		drawButton.setOnAction(e -> offerDraw());
 		bp.setRight(sidebar);
 		bp.setLeft(initBoard(grid));
+		bp.setBottom(arrowButtonContainer);
 
-		setEnPassantSq(new int[] {-1,-1});
+		board[8][0] = new int[] {-1};
+		board[8][1] = new int[] {-1};
 
 		gameRunning = true;
-		currentTurn = true;
+		currentTurn = 1;
 		halfTurns.set(0);
 
 
@@ -247,25 +257,25 @@ public class Board extends Application {
 
 		Random generator = new Random();
 
-		selectionW.setOnAction(e -> {	PlayerColor = true;
-			BotColor = false;
+		selectionW.setOnAction(e -> {	PlayerColor = 1;
+			BotColor = 0;
 			//counter.setValue(true);
 			cont.setVisible(false);
-			currentTurn = true;
+			currentTurn = 1;
 			freePlay = false;
 			gameRunning = true;
 			fullTurns.set(1);;
 			halfTurns.set(-1);
 			halfTurns.set(0);
 		});
-		selectionB.setOnAction(e -> {	PlayerColor = false; 
-			BotColor = true; 
+		selectionB.setOnAction(e -> {	PlayerColor = 0; 
+			BotColor = 1; 
 			System.out.println("mf1:"+BotColor);
 			//counter.setValue(true); 
 			cont.setVisible(false);
 			isDefaultBoardRotation = false;
 			redraw(grid);
-			currentTurn = true;
+			currentTurn = 1;
 			freePlay = false;
 			gameRunning = true;
 			fullTurns.set(1);;
@@ -273,16 +283,16 @@ public class Board extends Application {
 			halfTurns.set(0);
 
 		});
-		selectionR.setOnAction(e -> {	PlayerColor = generator.nextBoolean(); 
-			BotColor = !PlayerColor; 
+		selectionR.setOnAction(e -> {	PlayerColor = generator.nextInt(2); 
+			BotColor = (PlayerColor + 1) % 2; 
 			//counter.setValue(true); 
 			cont.setVisible(false);
 	
-			if(!PlayerColor) {
+			if((PlayerColor + 1) % 2 == 1) {
 				isDefaultBoardRotation = false;
 				redraw(grid);
 			}
-			currentTurn = true;
+			currentTurn = 1;
 			freePlay = false;
 			gameRunning = true;
 			fullTurns.set(1);;
@@ -305,7 +315,7 @@ public class Board extends Application {
 		initButtonContainer.setVisible(true);
 		if(mayflower != null) {
 			try {
-				queue.put(new Message(null, null, 0, null, "exit"));
+				queue.put(new Message(null, null, 0, "exit"));
 			} catch (InterruptedException e) {
 				
 				e.printStackTrace();
@@ -316,9 +326,10 @@ public class Board extends Application {
 		posList.clear();
 		freePlay = true;
 		moveCounter = 0;
-		currentTurn = true;
+		currentTurn = 1;
 		fullTurns.set(1);;
 		halfTurns.set(0);
+		gameRunning = true;
 		((TextArea)consoleCont.getContent()).clear();
 		sb = new StringBuilder();
 		initBoard(grid);
@@ -329,7 +340,7 @@ public class Board extends Application {
 		
 		if(mayflower != null && mayflower.isAlive()) {
 			try {
-				queue.put(new Message(null, null, 0, null, "exit"));
+				queue.put(new Message(null, null, 0, "exit"));
 			} catch (InterruptedException e) {
 				
 				e.printStackTrace();
@@ -368,27 +379,40 @@ public class Board extends Application {
 
 	}
 
-
+	/*
+	 * Other player, not current player, wins by resignation
+	 */
 
 	private void endGame() {
 		if(gameRunning) {
-			if(BotColor) {
-				sb.append("\nWhite wins by resignation");
-				console.setText(sb.toString());
-			}
-			else {
-				sb.append("\nBlack wins by resignation");
-				console.setText(sb.toString());
-			}
-			gameRunning = false;
-			
-			if(mayflower != null) {
+			if(mayflower != null){
+				if(BotColor == 1) {
+					sb.append("\nWhite wins by resignation");
+					console.setText(sb.toString());
+				}
+				else {
+					sb.append("\nBlack wins by resignation");
+					console.setText(sb.toString());
+				}
 				try {
-					queue.put(new Message(null, null, 0, null, "exit"));
+					queue.put(new Message(null, null, 0, "exit"));
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
 			}
+			else {
+				if(currentTurn == 1) {
+					sb.append("\nBlack wins by resignation");
+					console.setText(sb.toString());
+				}
+				else if(currentTurn == 0) {
+					sb.append("\nWhite wins by resignation");
+					console.setText(sb.toString());
+				}
+			}
+			
+			gameRunning = false;
+
 		}
 	}
 
@@ -431,8 +455,8 @@ public class Board extends Application {
 	// 0	1	2	3	4	5	6
 	// 1	1	1	2	2	3	3
 	
-	private void setTurn(String piece, int y, int tx, int ty,int result) {
-		currentTurn = !currentTurn;
+	private void setTurn(int pieceId, int y, int tx, int ty,int result) {
+		currentTurn = (currentTurn+1) % 2;
 		halfTurns.set(halfTurns.getValue()+1);
 
 		if(halfTurns.get() % 2 == 0 && halfTurns.get() != 0) {		
@@ -452,7 +476,7 @@ public class Board extends Application {
 			gameRunning = false;
 		}
 		else {
-			sb.append(pieceSymbol(piece,y,tx,ty)+(result == 5 ? '+' : "")+" ");
+			sb.append(pieceSymbol(pieceId,y,tx,ty,result == 11)+(result == 5 ? '+' : "")+" ");
 			
 			if(result == 5) {
 				check = true;
@@ -476,13 +500,13 @@ public class Board extends Application {
 		String status = m.getStatus();
 
 		System.out.println("setting message object: "+"board: "+board+" turn: "+(fullTurns+""));
-
+		System.out.println(move);
 
 
 		//handle engine resignation
 		if(status.equals("resign") || status.equals("draw accepted")) {
 			if(!status.equals("draw accepted")) {
-				if(PlayerColor) {
+				if(PlayerColor == 1) {
 					sb.append("White wins by resignation");
 				}
 				else {
@@ -496,7 +520,7 @@ public class Board extends Application {
 
 			//shut down engine thread
 			try {
-				queue.put(new Message(null, null, 0, null, "exit"));
+				queue.put(new Message(null, null, 0, "exit"));
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
@@ -579,7 +603,6 @@ public class Board extends Application {
 					});
 				
 
-				
 				p.setOnMouseDragEntered(e -> {
 					Pane n = (Pane)(e.getGestureSource());
 					//Image s = ((ImageView) n.getChildren().get(1)).getImage();
@@ -611,12 +634,9 @@ public class Board extends Application {
 					((Rectangle)p.getChildren().get(0)).setFill(new Color(1.0,0.2,0.0,0.7));
 					check = false;
 				}
-				
 		
-				
 				GridPane.setConstraints(sqArray[i][j],i2,j2);
 				grid.getChildren().add(sqArray[i][j]);
-
 
 				
 			}
@@ -702,9 +722,9 @@ public class Board extends Application {
 		boolean moveIsLegal = false;
 
 		if(currentTurn == PlayerColor || freePlay) {
-			returnKingAndRookPositions(board, currentTurn);
+			storeKingAndRookPositions(board, currentTurn);
 
-			ArrayList<int[]> allMoves = MGameUtility.getAllMoves(board, currentTurn, boardPiecesInfo);
+			ArrayList<int[]> allMoves = MGameUtility.getAllMoves(board, currentTurn);
 
 			for (int[] list : allMoves) {
 				System.out.println(list[0]+ " "+
@@ -746,15 +766,16 @@ public class Board extends Application {
 		System.out.println("move is "+result);
 
 		if(result == 0 || result == 3 || result == 4 || result == 5 || result == 6) {
+			setTurn(board[sx][sy][0], sx, tx, ty,result);
 			makeMove(board[sx][sy],sx,sy,tx,ty);
-			setTurn(board[tx][ty].getName(), sx, tx, ty,result);
+			
 
 
 			if(result == 3) {
 				sb.append("White wins by checkmate!\n");
 				if(mayflower != null) {
 					try {
-						queue.put(new Message(null, null, 0, null, "exit"));
+						queue.put(new Message(null, null, 0,"exit"));
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					}
@@ -765,7 +786,7 @@ public class Board extends Application {
 				sb.append("Black wins by checkmate!\n");
 				if(mayflower != null) {
 					try {
-						queue.put(new Message(null, null, 0, null, "exit"));
+						queue.put(new Message(null, null, 0, "exit"));
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					}
@@ -803,18 +824,21 @@ public class Board extends Application {
 			}
 			else if(result == 13) {
 				makeMove(board[sx][sy],sx,sy,tx,ty);
-				setEnPassantSq(new int[] {tx+1,ty});
+				board[8][0] = new int[] {tx + 1};
+				board[8][1] = new int[] {ty};
 			}
 			else if(result == 14) {
 				makeMove(board[sx][sy],sx,sy,tx,ty);
-				setEnPassantSq(new int[] {tx-1,ty});
+				board[8][0] = new int[]{tx - 1};
+				board[8][1] = new int[]{ty};
 			}
 			if(result != 13 && result != 14) {
-				setEnPassantSq(new int[] {-1,-1,});
+				board[8][0] = new int[]{-1};
+				board[8][1] = new int[]{-1};
 			}
 			
 			if(result != 12) {
-				setTurn(board[tx][ty].getName(), sx, tx, ty,result);
+				setTurn(board[tx][ty][0], sx, tx, ty,result);
 			}
 		}
 		redraw(grid);
@@ -824,19 +848,13 @@ public class Board extends Application {
 
 
 
-	public static void setEnPassantSq(int[] a) {
-		System.out.println("setting en passant: "+a[0]+" "+a[1]);
-		boardPiecesInfo[6] = a[0];
-		boardPiecesInfo[7] = a[1];
+	public static int getMaxID() {
+		return maxID;
 	}
 
+	public void makeMove(int[] piece, int x, int y, int tX, int tY){
 
-	public void makeMove(Piece piece, int x, int y, int tX, int tY){
-		if(board[tX][tY] != null){
-			//scoreboard(board[tX][tY].getName());
-		}
-
-		ArrayList<int[]> squaresToPaint = MGameUtility.PaintLastMove(board,x, y, tX, tY);
+		ArrayList<int[]> squaresToPaint = MGameUtility.PaintLastMove(board, x, y, tX, tY);
 		
 		System.out.println(squaresToPaint.size());
 		
@@ -846,7 +864,8 @@ public class Board extends Application {
 		
 		board[x][y] = null;
 		board[tX][tY] = piece;
-		piece.setCoords(tX,tY);
+		piece[3] = tX;
+		piece[4] = tY;
 		
 		
 		
@@ -858,7 +877,7 @@ public class Board extends Application {
 
 	//t = {rookw1,rookw2,rookb1,rookb2,wk,bk,epx,epy}
 
-	public static void returnKingAndRookPositions(Piece[][] board, boolean turn) {
+	public static void storeKingAndRookPositions(int[][][] board, int turn) {
 
 
 		for(int j = 0; j < 8; j++) {
@@ -869,41 +888,41 @@ public class Board extends Application {
 				}
 				else {
 					//w king moved
-					if(board[i][j].getName().equals("king_w") && (i != 7 || j != 4)) {
+					if(board[i][j][0] == 23 && (i != 7 || j != 4)) {
 						System.out.println("w king moved "+i+" "+j);
-						boardPiecesInfo[4] = 1;
+						board[8][6] = new int[] {1};
 					}
 					// b king moved
-					if(board[i][j].getName().equals("king_b") && (i != 0 || j != 4)) {
+					if(board[i][j][0] == 16 && (i != 0 || j != 4)) {
 						System.out.println("b king moved "+i+" "+j);
-						boardPiecesInfo[5] = 1;
+						board[8][7] = new int[] {1};
 					}
 
 				}
 
 				//rooks moved?
-				if(board[i][j].getGid() == 11) {
+				if(board[i][j][1] == 11) {
 					if(i != 0 || j != 0) {
 						System.out.println("11 rook moved "+i+" "+j);
-						boardPiecesInfo[0] = 1;
+						board[8][2] =  new int[] {1};
 					}
 				}
-				else if(board[i][j].getGid() == 18) {
+				else if(board[i][j][1] == 18) {
 					if(i != 0 || j != 7) {
 						System.out.println("18 rook moved "+i+" "+j);
-						boardPiecesInfo[1] = 1;
+						board[8][3] = new int[] {1};
 					}
 				}
-				else if(board[i][j].getGid() == 27){
+				else if(board[i][j][1] == 27){
 					if(i != 7 || j != 0) {
 						System.out.println("27 rook moved "+i+" "+j);
-						boardPiecesInfo[2] = 1;
+						board[8][4] = new int[] {1};
 					}
 				}
-				else if(board[i][j].getGid() == 34){
+				else if(board[i][j][1] == 34){
 					if(i != 7 || j != 7) {
 						System.out.println("34 rook moved "+i+" "+j);
-						boardPiecesInfo[3] = 1;
+						board[8][5] = new int[] {1};
 					}
 				}
 			}
@@ -919,14 +938,14 @@ public class Board extends Application {
 	public static void setCastling(String s) {
 
 		if(s.equals("-")) {
-			bKingMoved = true;
-			wKingMoved = true;
+			board[8][7] = new int[] {1};
+			board[8][6] = new int[] {1};
 		}
 		else if(s.equals("KQ")) {
-			bKingMoved = true;
+			board[8][7] = new int[] {1};
 		}
 		else if(s.equals("kq")) {
-			wKingMoved = true;
+			board[8][6] = new int[] {1};
 		}
 		else if(s.equals("Kkq")) {
 			rooksMoved[2] = 1;
@@ -935,26 +954,26 @@ public class Board extends Application {
 			rooksMoved[3] = 1;
 		}
 		else if(s.equals("KQk")) {
-			rooksMoved[0] = 1;
+			board[8][2] =  new int[] {1};
 		}
 		else if(s.equals("KQq")) {
-			rooksMoved[1] = 1;
+			board[8][3] = new int[] {1};
 		}
 		else if(s.equals("Qq")) {
-			rooksMoved[1] = 1;
-			rooksMoved[3] = 1;
+			board[8][3] = new int[] {1};
+			board[8][5] = new int[] {1};
 		}
 		else if(s.equals("Kk")) {
-			rooksMoved[0] = 1;
-			rooksMoved[2] = 1;
+			board[8][2] = new int[] {1};
+			board[8][4] = new int[] {1};
 		}
 		else if(s.equals("Qk")) {
-			rooksMoved[3] = 1;
-			rooksMoved[0] = 1;
+			board[8][5] = new int[] {1};
+			board[8][2] = new int[] {1};
 		}
 		else if(s.equals("Kq")) {
-			rooksMoved[2] = 1;
-			rooksMoved[1] = 1;
+			board[8][4] = new int[] {1};
+			board[8][3] = new int[] {1};
 		}
 
 	}
@@ -962,7 +981,7 @@ public class Board extends Application {
 	private void promotionSelector(int X, int Y, int tX, int tY) {
 		VBox list = new VBox();
 
-		char colorChar = currentTurn ? 'w' : 'b';
+		char colorChar = currentTurn == 1 ? 'w' : 'b';
 
 		ImageView rook = new ImageView();
 		ImageView knight = new ImageView();
@@ -984,56 +1003,56 @@ public class Board extends Application {
 
 		rook.setOnMousePressed(e -> {
 			if(board[tX][tY] != null) {
-				board[tX][tY].setCoords(-1, -1);			
+				board[tX][tY][3] = -1;
+				board[tX][tY][4] = -1;
 			}
-			board[tX][tY] = new Piece("rook_"+colorChar,maxID+1,maxID+1,currentTurn,tX,tY);
-			board[tX][tY].setCoords(tX, tY);
+			board[tX][tY] = new int[] {maxID+1,maxID+1,currentTurn,tX,tY};
 			board[X][Y] = null;
 			grid.getChildren().remove(grid.getChildren().size()-1);
 			smallmenu.hide();
-			RuleSet.validate(board, currentTurn, X, Y, tX, tY, boardPiecesInfo);
-			setTurn(board[tX][tY].getName(), X, tX, tY,12);
+			RuleSet.validate(board, currentTurn, X, Y, tX, tY);
+			setTurn(board[tX][tY][0], X, tX, tY,12);
 			sb.append("=R ");
 			redraw(grid);
 
 		});
 		knight.setOnMousePressed(e -> {
 			if(board[tX][tY] != null) {
-				board[tX][tY].setCoords(-1, -1);			
+				board[tX][tY][3] = -1;
+				board[tX][tY][4] = -1;		
 			}
-			board[tX][tY] = new Piece("knight_"+colorChar,maxID+2,maxID+2,currentTurn,tX,tY);
-			board[tX][tY].setCoords(tX, tY);
+			board[tX][tY] = new int[] {maxID+2,maxID+2,currentTurn,tX,tY};
 			board[X][Y] = null;
 			grid.getChildren().remove(grid.getChildren().size()-1);
 			smallmenu.hide();
-			setTurn(board[tX][tY].getName(), X, tX, tY,12);
+			setTurn(board[tX][tY][0], X, tX, tY,12);
 			redraw(grid);
 			sb.append("=N ");
 		});
 
 		bishop.setOnMousePressed(e -> {
 			if(board[tX][tY] != null) {
-				board[tX][tY].setCoords(-1, -1);			
+				board[tX][tY][3] = -1;
+				board[tX][tY][4] = -1;			
 			}
-			board[tX][tY] = new Piece("bishop_"+colorChar,maxID+3,maxID+3,currentTurn,tX,tY);
-			board[tX][tY].setCoords(tX, tY);
+			board[tX][tY] = new int[] {maxID+3,maxID+3,currentTurn,tX,tY};
 			board[X][Y] = null;
 			grid.getChildren().remove(grid.getChildren().size()-1);
 			smallmenu.hide();
-			setTurn(board[tX][tY].getName(), X, tX, tY,12);
+			setTurn(board[tX][tY][0], X, tX, tY,12);
 			redraw(grid);
 			sb.append("=B ");
 		});		
 		queen.setOnMousePressed(e -> {
 			if(board[tX][tY] != null) {
-				board[tX][tY].setCoords(-1, -1);			
+				board[tX][tY][3] = -1;
+				board[tX][tY][4] = -1;			
 			}
-			board[tX][tY] = new Piece("queen_"+colorChar,maxID+4,maxID+4,currentTurn,tX,tY);
-			board[tX][tY].setCoords(tX, tY);
+			board[tX][tY] = new int[] {maxID+4,maxID+4,currentTurn,tX,tY};
 			board[X][Y] = null;
 			grid.getChildren().remove(grid.getChildren().size()-1);
 			smallmenu.hide();
-			setTurn(board[tX][tY].getName(), X, tX, tY,12);
+			setTurn(board[tX][tY][0], X, tX, tY,12);
 			redraw(grid);
 			sb.append("=Q ");
 		});
@@ -1047,28 +1066,29 @@ public class Board extends Application {
 	}
 
 
-	private  String pieceSymbol(String piece, int startingX, int targetX, int targetY) {
+	private  String pieceSymbol(int id, int startingX, int targetX, int targetY,boolean enPassant) {
 		String symbol = "";
 
-		if(piece.contains("knight")) {
+		
+		if(id == 12 || id == 19) {
 			symbol = "N";
 		}
-		else if(piece.contains("bishop")) {
+		else if(id == 13 || id == 14 || id == 20 || id == 21) {
 			symbol = "B";
 		}
-		else if(piece.contains("queen")) {
+		else if(id == 15 || id == 22) {
 			symbol = "Q";
 		}
-		else if(piece.contains("rook")) {
+		else if(id == 11 || id == 18) {
 			symbol = "R";
 		}
-		else if(piece.contains("king")) {
+		else if(id == 16 || id == 23) {
 			symbol = "K";
 		}
 
-
+		System.out.println();
+		symbol += (board[targetX][targetY] != null || enPassant) ? 'x' : "";
 		symbol += xConv(targetY)+(8-targetX);
-
 
 
 		return symbol;
@@ -1110,13 +1130,14 @@ public class Board extends Application {
 
 
 	private String squareContent(int x, int y) {
-		Piece element = board[x][y];
+		int[] element = board[x][y];
 
+		
 		if(element == null) {
 			return null;
 		}
-
-		return element.getName();
+		
+		return "piece_"+ (char) element[5];
 
 	}
 
@@ -1204,10 +1225,10 @@ public class Board extends Application {
 			if(read == 0) {
 				index++;
 				if(FEN.charAt(index) == 'b') {
-					currentTurn = false;
+					currentTurn = 0;
 				}
 				else if(FEN.charAt(index) == 'w') {
-					currentTurn = true;
+					currentTurn = 1;
 				}
 				read++;
 				index += 2;
@@ -1266,8 +1287,8 @@ public class Board extends Application {
 
 					int tempX = 7 - Integer.parseInt(FEN.charAt(index+1)+"") - 1;
 
-					boardPiecesInfo[6] = tempX;
-					boardPiecesInfo[7] = tempY;
+					board[8][0][0] = tempX;
+					board[8][1][0] = tempY;
 
 					index++;
 
@@ -1295,6 +1316,7 @@ public class Board extends Application {
 
 
 
+
 		int uniqueBP = 0;
 		int uniqueWP = 0;
 
@@ -1302,78 +1324,78 @@ public class Board extends Application {
 
 		case 'r':
 			if(t[0]) {
-				board[i][j] = new Piece("rook_b", 11, 11, false,i,j);
+				board[i][j] = new int[] {11,11,0,0,0};
 				t[0] = false;
 			}
 			else {
-				board[i][j] = new Piece("rook_b", 11, 18, false,i,j);
+				board[i][j] = new int[] {11,18,0,0,7};
 			}
 			break;	
 		case 'n':
 			if(t[1]) {
-				board[i][j] = new Piece("knight_b",12,12,false,i,j);
+				board[i][j] = new int[] {12,12,0,0,1};
 				t[1] = false;
 			}
 			else {
-				board[i][j] = new Piece("knight_b",12,17,false,i,j);
+				board[i][j] = new int[] {12,17,0,0,1};
 			}
 			break;
 
 		case 'b':
 			if(t[2]) {
-				board[i][j] = new Piece("bishop_b",13,13,false,i,j);
+				board[i][j] = new int[] {13,13,0,0,1};
 				t[2] = false;
 			}
 			else {
-				board[i][j] = new Piece("bishop_b",14,16,false,i,j);
+				board[i][j] = new int[] {14,16,0,0,1};
 			}
 			break;
 		case 'q':
-			board[i][j] = new Piece("queen_b",15,14,false,i,j);
+			board[i][j] = new int[] {15,14,0,0,1};
 			break;
 		case 'k':
-			board[i][j] = new Piece("king_b",16,15,false,i,j);
+			board[i][j] = new int[] {16,15,0,0,1};
 			break;
 		case 'p':
-			board[i][j] = new Piece("pawn_b",17,19+uniqueBP,false,i,j);
+			board[i][j] = new int[] {17,19+uniqueBP,0,0,1};
 			uniqueBP++;
 			break;
 
 		case 'R':
 			if(t[3]) {
-				board[i][j] = new Piece("rook_w", 18, 27, true,i,j);
+				board[i][j] = new int[] {18,27,1,7,0};
 				t[3] = false;
 			}
 			else {
-				board[i][j] = new Piece("rook_w", 18, 34, true,i,j);
+				board[i][j] = new int[] {18,34,1,7,0};
 			}
 			break;
 		case 'N':
 			if(t[4]) {
-				board[i][j] = new Piece("knight_w",19,28,true,i,j);
+				board[i][j] = new int[] {19,28,1,7,0};
 				t[4] = false;
 			}
 			else {
-				board[i][j] = new Piece("knight_w",19,33,true,i,j);
+				board[i][j] = new int[] {19,33,1,7,0};
 			}
 			break;
 		case 'B':
 			if(t[5]) {
-				board[i][j] = new Piece("bishop_w",20,29,true,i,j);
+				board[i][j] = new int[] {20,29,1,7,0};
 				t[5] = false;
 			}
 			else {
-				board[i][j] = new Piece("bishop_w",21,32,true,i,j);
+				board[i][j] = new int[] {21,32,1,7,0};
 			}
 			break;
 		case 'Q':
-			board[i][j] = new Piece("queen_w",21,30,true,i,j);
+			board[i][j] = new int[] {21,30,1,7,0};
 			break;
 		case 'K':
-			board[i][j] = new Piece("king_w",22,31,true,i,j);
+			board[i][j] = new int[] {22,31,1,7,0};
 			break;
 		case 'P':
-			board[i][j] = new Piece("pawn_w",17,19+uniqueWP,true,i,j);
+			board[i][j] = new int[] {24,35+uniqueWP,1,7,0};
 			uniqueWP++;
 			break;
 
@@ -1381,30 +1403,35 @@ public class Board extends Application {
 		index++;
 
 	}
+	
 	private GridPane initBoard(GridPane grid) {
 
 
-		board[0][0] = new Piece("rook_b",11,11,false,0,0);
-		board[0][1] = new Piece("knight_b",12,12,false,0,1);
-		board[0][2] = new Piece("bishop_b",13,13,false,0,2);
-		board[0][3] = new Piece("queen_b",15,14,false,0,3);
-		board[0][4] = new Piece("king_b",16,15,false,0,4);
-		board[0][5] = new Piece("bishop_b",14,16,false,0,5);
-		board[0][6] = new Piece("knight_b",12,17,false,0,6);
-		board[0][7] = new Piece("rook_b",11,18,false,0,7);
+		board[0][0] = new int[] {11,11,0,0,0,114};
+		board[0][1] = new int[] {12,12,0,0,1,110};
+		board[0][2] = new int[] {13,13,0,0,2,98};
+		board[0][3] = new int[] {15,14,0,0,3,113};
+		board[0][4] = new int[] {16,15,0,0,4,107};
+		board[0][5] = new int[] {14,16,0,0,5,98};
+		board[0][6] = new int[] {12,17,0,0,6,110};
+		board[0][7] = new int[] {11,18,0,0,7,114};
 
-		board[7][0]  = new Piece("rook_w",18,27,true,7,0);
-		board[7][1]  = new Piece("knight_w",19,28,true,7,1);
-		board[7][2]  = new Piece("bishop_w",20,29,true,7,2);
-		board[7][3]  = new Piece("queen_w",22,30,true,7,3);
-		board[7][4]  = new Piece("king_w",23,31,true,7,4);
-		board[7][5]  = new Piece("bishop_w",21,32,true,7,5);
-		board[7][6]  = new Piece("knight_w",19,33,true,7,6);
-		board[7][7]  = new Piece("rook_w",18,34,true,7,7);
+		board[7][0]  = new int[] {18,27,1,7,0,82};
+		board[7][1]  = new int[] {19,28,1,7,1,78};
+		board[7][2]  = new int[] {20,29,1,7,2,66};
+		board[7][3]  = new int[] {22,30,1,7,3,81};
+		board[7][4]  = new int[] {23,31,1,7,4,75};
+		board[7][5]  = new int[] {21,32,1,7,5,66};
+		board[7][6]  = new int[] {19,33,1,7,6,78};
+		board[7][7]  = new int[] {18,34,1,7,7,82};
+		
+		for(int i = 0; i<8; i++) {
+			board[8][i] = new int[] {0};
+		}
 
 		for (int i = 0; i < 8; i++) {
-			board[1][i] = new Piece("pawn_b",17,19+i,false,1,i);
-			board[6][i] = new Piece("pawn_w",24,35+i,true,6,i);
+			board[1][i] = new int[] {17,19+i,0,1,i,112};
+			board[6][i] = new int[] {24,35+i,1,6,i,80};
 		}
 
 		for(int i = 2; i<6; i++) {

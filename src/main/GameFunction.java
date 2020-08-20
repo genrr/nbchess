@@ -2,36 +2,38 @@ package main;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 
-
-/**
- * Records relation of feature f with all Values v
- * 
- * 
- * @author Sami
- *
- */
-
-
-public class ParameterizedValueFunction {
+public class GameFunction {
+	
+	public static double[] computeRelations(double[] rtFunctionArray) {
+		
+		double[] relationsMatrix = new double[650];
+		int temp = 0;
+		
+		for(int feature1 = 1; feature1 < 27; feature1++) {
+			for(int feature2 = 2; feature2 < 27; feature2++) {
+				if(feature1 == feature2) {
+					continue;
+				}
+				relationsMatrix[temp] = rtFunctionArray[feature1] / rtFunctionArray[feature2];
+				temp++;
+			}
+		}
+		
+	}
+	
 	
 	private static double[] featureInput = new double[64];
 	private static double[] valueOutput = new double[64];
 	
 	private static double[] featureChange = new double[63];
 	private static double[] valueChange = new double[63];
-	
-	public static void main(String[] br) {
-		compute();
-	}
-	
+
 	
 	public static void compute(int turn) {
 		RawFeatureParameterizedValueRelation(1, 2, 1);
@@ -232,6 +234,5 @@ public class ParameterizedValueFunction {
 
 		return (int) (Math.abs(changeSumX) + Math.abs(changeSumY));
 	}
-	
 	
 }

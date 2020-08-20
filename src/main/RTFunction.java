@@ -23,12 +23,7 @@ public class RTFunction extends Thread {
 
 	ArrayList<Double> function = new ArrayList<Double>();
 	
-	public void run() {
-		
-		
-		
-	}
-	
+
 	
 	
 	

@@ -8,19 +8,12 @@ import java.util.concurrent.BlockingQueue;
 
 public class GameSystem {
 
-	private static ComplexSystem c;
-	
 
 
+	public static int[] prioritize(double[] evaluation,int maxHeuristics) {
 
-
-	public static Piece[][][] generateLines(Piece[][] board,boolean white, double[] evaluation, ComplexSystem csys, Objectives o, BlockingQueue<Message> queue) {
-	
-		int maxHeuristics = 5;
-		c = csys;
-		ArrayList<Integer> actionList = new ArrayList<Integer>();
 		ArrayList<int[]> coeffList = new ArrayList<int[]>();
-		Piece[][][] posStack = new Piece[GameLogic.LINES_AMOUNT][][];
+		Piece[][][] posStack = new Piece[GameLogic.NO_LINES][][];
 		
 		int[] eValues = new int[26];
 		int[] indexList = new int[maxHeuristics];
@@ -28,19 +21,19 @@ public class GameSystem {
 		
 		for (int i = 0; i < evaluation.length; i++) {
 			if(Math.abs(evaluation[i]) > 15) {
-				eValues[i] = 5;
+				eValues[i] = (int) (Math.signum(evaluation[i])*5);
 			}
 			else if(Math.abs(evaluation[i]) > 8) {
-				eValues[i] = 4;
+				eValues[i] = (int) (Math.signum(evaluation[i])*4);
 			}
 			else if(Math.abs(evaluation[i]) > 5) {
-				eValues[i] = 3;
+				eValues[i] = (int) (Math.signum(evaluation[i])*3);
 			}
 			else if(Math.abs(evaluation[i]) > 3) {
-				eValues[i] = 2;
+				eValues[i] = (int) (Math.signum(evaluation[i])*2);
 			}
 			else {
-				eValues[i] = 1;
+				eValues[i] = (int) (Math.signum(evaluation[i])*1);
 			}
 		}
 		
@@ -55,19 +48,12 @@ public class GameSystem {
 				if(eValues[i] == max) {
 					if(h < indexList.length) {
 						indexList[h] = i;
-						h++;				}
+						h++;				
 					}
-			}
-
-			
+				}
+			}			
 		}
-		
-		for(int j = 0; j<GameLogic.LINES_AMOUNT; j++) {
-			posStack[j] = fillPosition(board,white,evaluation,indexList,o,queue);
-		}
-		
-		
-		
+	
 		/*
 		actionlist [19][27][11]
 		coefflist  [ 8][ 5][ 1]
@@ -82,11 +68,7 @@ public class GameSystem {
 		*/
 
 		
-		//expand lines at
-		//phase 3.
-		
-		
-		return posStack;
+		return indexList;
 	}
 
 	
@@ -231,6 +213,8 @@ public class GameSystem {
 		
 		
 	}
+
+
 
 
 }
