@@ -40,20 +40,22 @@ public class ValueFunction {
 		ArrayList<int[]> ownPieces = MGameUtility.ReturnAllPieces(board, whitesTurn);
 		ArrayList<int[]> ks;
 
-		//kings safe squares
-		int temp;
+		
+		
+		//1) kings safe squares ***
+		int distance;
 		ks = RuleSet.GetKingsSquares(board, t[0], t[1]);
 		n = ks.size();
 		//iterate kings squares
 		for(int[] kingsSquare : ks){
 			//iterate all enemyPieces
 			for(int[] q : enemyPieces) {
-				temp = MGameUtility.distance(board, q, q[3], q[4], 
+				distance = MGameUtility.distance(board, q, q[3], q[4], 
 						kingsSquare[0], kingsSquare[1], false);
 
-				if(temp != 0) {
+				if(distance != 0) {
 					//System.out.println("dist "+temp);
-					threatMultSum += 3 / temp;	
+					threatMultSum += 3 / distance;	
 					//System.out.println("king threat sum "+threatMultSum);
 				}
 				// 1/1 + 1/3 + 1/2 (skipped zeros of 6 kings squares,
@@ -61,11 +63,11 @@ public class ValueFunction {
 			}
 		}
 		//e.g 6 - (1.83)² ~ 2.63
-		values[0] = n - Math.pow(threatMultSum,2);
+		values[0] = (n - Math.pow(threatMultSum,2)) / n;
 
 
 
-		//sum of all own pieces' distance to enemy king
+		//2) sum of all own pieces' distance to enemy king ***
 		int[] ekt = MGameUtility.getKingPos(board, (whitesTurn+1) % 2);
 		int eKingX = ekt[0];
 		int eKingY = ekt[1];
@@ -76,12 +78,12 @@ public class ValueFunction {
 			sum += MGameUtility.distance(board, piece, piece[3], piece[4], eKingX, eKingY, false);
 		}
 
-		values[1] = sum;
+		values[1] = sum / MGameUtility.ReturnAllPieces(board, whitesTurn).size();
 
 
 
 
-		//sum of all squares within 1
+		//3) sum of all squares within 1 ***
 		int count = 0;
 
 		for(int i = 0; i<8; i++) {
@@ -99,14 +101,17 @@ public class ValueFunction {
 				}
 			}
 		}
+		values[2] = count / 6.0;
 
-
-		values[2] = count;
-
+		
+		//4) enttropu ***
 		if(computeEntropy) {
 			values[3] = 5;//MoveEntropy(board,whitesTurn) / MoveEntropy(board,!whitesTurn);
 		}
 		
+		
+		
+		//5) general position, piece activity
 		int sqCount = 0;
 		int maxSqCount = 0;
 		int adjSqCount = 0;
@@ -156,6 +161,7 @@ public class ValueFunction {
 		//return value (emphasizing on) max squares
 		//+ adjusted squares + adjusted attacks + adjusted defences
 		values[4] = maxSqCount + sumAdjSqCount + sumAdjAtt + sumAdjDef; 
+		values[4] /= 5.5; 
 
 		return values;
 	}
@@ -220,32 +226,11 @@ public class ValueFunction {
 
 	public static double[] normalize(int[][][] pos, int white, double[] v, double[] qualityValues) {
 		double v1 = v[0];
-
-		v1 /= 8.0;
-
-		double v2 = v[1];
-
-		v2 /= MGameUtility.ReturnAllPieces(pos, white).size();
-
+		double v2 = v[1];		
 		double v3 = v[2];
-
-		v3 /= 6.0;
-
 		double v4 = v[3];
-
 		double v5 = v[4];
 
-		v5 /= 5.5;
-
-
-		v1 = Math.abs(1 - v1);
-		v2 = Math.abs(1 - v2);
-		v3 = Math.abs(1 - v3);
-		v4 = Math.abs(1 - v4);
-		v5 = Math.abs(1 - v5);
-		
-		
-		
 		/*
 		 * 0.1
 		 * 0.4

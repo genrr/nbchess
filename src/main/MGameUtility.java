@@ -774,6 +774,7 @@ public class MGameUtility {
 						continue;
 					}
 
+					
 					int t = RuleSet.validate(board, white, p[3], p[4], i, j);
 
 
@@ -795,10 +796,10 @@ public class MGameUtility {
 						}
 						list.add(new int[] {p[3],p[4],i,j,t,promotion,board[8][0][0],board[8][1][0],capture});
 
-						System.out.println(list.get(list.size()-1)[0]+ " "+
-								list.get(list.size()-1)[1]+ " "+
-								list.get(list.size()-1)[2]+ " "+
-								list.get(list.size()-1)[3]+ " "+list.get(list.size()-1)[4]);
+//						System.out.println(list.get(list.size()-1)[0]+ " "+
+//								list.get(list.size()-1)[1]+ " "+
+//								list.get(list.size()-1)[2]+ " "+
+//								list.get(list.size()-1)[3]+ " "+list.get(list.size()-1)[4]);
 					}
 
 				}
@@ -819,7 +820,7 @@ public class MGameUtility {
 				if(board[i][j] != null && (board[i][j][0] == 16 || board[i][j][0] == 23)) {
 					if(board[i][j][2] == turn) {
 						t[0] = i;
-						t[1] = j;				
+						t[1] = j;
 					}
 				}
 			}
@@ -1050,7 +1051,7 @@ public class MGameUtility {
 	 * Pearsons correlation coefficient
 	 */
 	
-	public static double correlation(double[] d1, double[] d2) {
+	public static double correlation(double[] d1, double[] d2, int r) {
 		double cov = 0;
 		double stdDevD1 = 0;
 		double stdDevD2 = 0;
@@ -1079,11 +1080,16 @@ public class MGameUtility {
 		}
 		
 		for(int i = 0; i<d1.length; i++) {
+			if(d1[i] == 0 || d2[i] == 0) {
+				//System.out.println(d1[i]+"##"+d2[i]+" r "+r);
+			}
+			
 			stdDevD1 += Math.pow(d1[i] - avgd1, 2);  
 			stdDevD2 += Math.pow(d2[i] - avgd2, 2);
 		}
 		
-		return cov / Math.sqrt(stdDevD1 * stdDevD2); 
+		
+		return (cov == 0 || stdDevD1 == 0 || stdDevD2 == 0) ? 0 : cov / Math.sqrt(stdDevD1 * stdDevD2); 
 		
 		
 	}

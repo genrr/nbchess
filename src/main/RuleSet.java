@@ -165,10 +165,10 @@ public class RuleSet {
 		ArrayList<int[]> opponentsAttackingPieces = CheckingPieces(turn, testBoard);
 		ArrayList<int[]> ownAttackingPieces = CheckingPieces(oTurn, testBoard);
 		
-		//test for drawn position (3-fold/5-fold repetition, in sufficient material endgames, stalemate)
-		if(checkDraw(testBoard, MGameUtility.ReturnAllPieces(board, turn),MGameUtility.ReturnAllPieces(board, oTurn))) {
-			return 6;
-		}
+//		//test for drawn position (3-fold/5-fold repetition, in sufficient material endgames, stalemate)
+//		if(checkDraw(testBoard, MGameUtility.ReturnAllPieces(board, turn),MGameUtility.ReturnAllPieces(board, oTurn))) {
+//			return 6;
+//		}
 		
 		//test for for checkmate in this new position
 		if(checkmateTest(turn,testBoard)) {
@@ -590,8 +590,8 @@ public class RuleSet {
 			
 			if(MGameUtility.distance(board, opponentsPieces.get(index), opponentsPieces.get(index)[3], 
 					opponentsPieces.get(index)[4], kingX, kingY, false) == 1) {
-				System.out.println("check: "+opponentsPieces.get(index)[1]
-						+" in "+opponentsPieces.get(index)[3]+","+opponentsPieces.get(index)[4]);
+//				System.out.println("check: "+opponentsPieces.get(index)[1]
+//						+" in "+opponentsPieces.get(index)[3]+","+opponentsPieces.get(index)[4]);
 				checkingPieces.add(opponentsPieces.get(index));
 			}
 			index++;
@@ -610,11 +610,13 @@ public class RuleSet {
 		
 		ArrayList<int[]> c;
 		
+		
+		
 	
 		//opponents king x,y
 		int kingX = MGameUtility.getKingPos(board,oTurn)[0];
 		int kingY = MGameUtility.getKingPos(board,oTurn)[1];
-		
+		//System.out.println(board[kingX][kingY][2]);
 		
 		
 		//if this variable reaches 0 after initializing it with kingsMoves size, there are no legal moves for the king
@@ -776,9 +778,10 @@ public class RuleSet {
 		//repetition: 3-fold repetition, 5-fold repetition
 		for(int i = 0; i < pos.size(); i++) {
 			for(int j = 0; j < pos.size(); j++) {
+				//System.out.println(pos.toString());
 				if(i != j && pos.get(i).equals(pos.get(j))) {
 					//System.out.println("match found "+appearances);
-					//System.out.println(pos.toString());
+					
 					appearances++;
 					if(appearances == 3) {
 						System.out.println("three-fold repetition");

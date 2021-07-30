@@ -4,13 +4,10 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
-import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -18,10 +15,6 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.input.ClipboardContent;
-import javafx.scene.input.DataFormat;
-import javafx.scene.input.Dragboard;
-import javafx.scene.input.TransferMode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -31,25 +24,20 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 public class Board extends Application {
-
 	private static Engine mayflower;	
 	private static int[][][] board = new int[9][8][];
 	private static ArrayList<String> posList = new ArrayList<String>();
-	//public Piece[] pieces = new Piece[32];
-	public int moveCounter = 0;
-	
+	public int moveCounter = 0;	
 	private static int maxID = 42;
 	private static int turnsWoPMOrC = 0; 
 	private static boolean drawOfferedByBot = false;
 	private static boolean gameRunning = false;
 	private static boolean freePlay = true;
-	private static boolean moving = false;
 	private static SimpleIntegerProperty halfTurns  = new SimpleIntegerProperty(-1);
 	private static SimpleIntegerProperty fullTurns  = new SimpleIntegerProperty(1);
 	public static SimpleBooleanProperty moveReady = new SimpleBooleanProperty(false);
@@ -58,7 +46,6 @@ public class Board extends Application {
 	private static int PlayerColor;
 	private static int BotColor;
 	private static BlockingQueue<Message> queue = new ArrayBlockingQueue<>(1);
-
 	private static ScrollPane consoleContainer = new ScrollPane();
 	private static TextArea console = new TextArea();
 	private static GridPane grid = new GridPane();
@@ -73,7 +60,6 @@ public class Board extends Application {
 	private static Pane selectedTargetSquare = null;
 	private Pane[][] sqArray = new Pane[8][8];
 	private boolean check;
-
 	private static boolean bKingMoved = false;
 	private static boolean wKingMoved = false;
 	private static int[] rooksMoved = {0,0,0,0};
@@ -81,7 +67,6 @@ public class Board extends Application {
 	private static boolean wcastlingq = false;
 	private static boolean bcastlingk = false;
 	private static boolean bcastlingq = false;
-
 
 
 	@Override
@@ -92,7 +77,6 @@ public class Board extends Application {
 		Scene scene = new Scene(bp,1080,920);
 		window.setScene(scene);
 		window.show();
-		
 		VBox sidebar = new VBox();
 		//sidebar.setOrientation(Orientation.VERTICAL);
 
@@ -115,13 +99,10 @@ public class Board extends Application {
 		arrowButtonContainer.setAlignment(Pos.CENTER);
 		initButtonContainer.getChildren().addAll(startButton,loadButton);
 		arrowButtonContainer.getChildren().addAll(leftButton,rightButton);
-
 		HBox functionSettingsContainer = new HBox();
-		HBox.setMargin(colorButton,new Insets(25.0,10.0,50.0,10.0));
-
-		
+		HBox.setMargin(colorButton,new Insets(25.0,10.0,50.0,10.0));		
 		consoleContainer.setPadding(new Insets(15));
-		console.resize(250, 550);
+		console.resize(250, 550);	
 		
 		console.textProperty().addListener(new ChangeListener<Object>() {
 			@Override
@@ -130,7 +111,6 @@ public class Board extends Application {
 				console.setScrollTop(Double.MAX_VALUE);
 			}
 		});
-		
 		
 		//console.setPrefSize(250, 550);
 		//console.autosize();
@@ -141,7 +121,6 @@ public class Board extends Application {
 		turnLabel.setText("Turn: "+fullTurns.get()+" : White");
 		
 		fullTurns.addListener((observableValue,oldValue,newValue) -> {
-
 			turnLabel.setText("Turn: "+fullTurns.get()+" : "+turnLabelText);
 	
 		});
@@ -182,8 +161,7 @@ public class Board extends Application {
 					}
 
 				}
-				posList.add(Resources.calculateHash(board));
-				System.out.println(Resources.calculateHash(board));
+
 			}
 		});
 
@@ -239,6 +217,7 @@ public class Board extends Application {
 		currentTurn = 1;
 		halfTurns.set(0);
 
+		posList.add(Resources.calculateHash(board));
 
 	}
 
@@ -609,7 +588,7 @@ public class Board extends Application {
 					int a = Integer.parseInt(""+n.getId().charAt(0));
 					int b = Integer.parseInt(""+n.getId().charAt(1));
 					((sqArray[temp2][temp].getChildren().get(0))).setViewOrder(5);
-					((Rectangle)(sqArray[temp2][temp].getChildren().get(0))).setFill(new Color(0.83, 0.59, 0.57, 1));
+					((Rectangle)(sqArray[temp2][temp].getChildren().get(0))).setFill(new Color(0.2, 0.6, 0.4, 1));
 					((sqArray[temp2][temp].getChildren().get(1))).setViewOrder(4);
 					//((ImageView)(sqArray[temp2][temp].getChildren().get(1))).setImage(s);
 					((ImageView)(sqArray[a][b].getChildren().get(1))).setImage(null);
@@ -763,14 +742,10 @@ public class Board extends Application {
 
 	public void moveHandler(int result,int sx, int sy, int tx, int ty) {
 
-		System.out.println("move is "+result);
-
 		if(result == 0 || result == 3 || result == 4 || result == 5 || result == 6) {
 			setTurn(board[sx][sy][0], sx, tx, ty,result);
 			makeMove(board[sx][sy],sx,sy,tx,ty);
 			
-
-
 			if(result == 3) {
 				sb.append("White wins by checkmate!\n");
 				if(mayflower != null) {
@@ -793,7 +768,6 @@ public class Board extends Application {
 				}
 				gameRunning = false;
 			}
-
 			
 		}
 		else {
@@ -823,11 +797,13 @@ public class Board extends Application {
 				makeMove(board[sx][sy],sx,sy,tx,ty);
 			}
 			else if(result == 13) {
+				setTurn(board[sx][sy][0], sx, tx, ty,result);
 				makeMove(board[sx][sy],sx,sy,tx,ty);
 				board[8][0] = new int[] {tx + 1};
 				board[8][1] = new int[] {ty};
 			}
 			else if(result == 14) {
+				setTurn(board[sx][sy][0], sx, tx, ty,result);
 				makeMove(board[sx][sy],sx,sy,tx,ty);
 				board[8][0] = new int[]{tx - 1};
 				board[8][1] = new int[]{ty};
@@ -837,12 +813,13 @@ public class Board extends Application {
 				board[8][1] = new int[]{-1};
 			}
 			
-			if(result != 12) {
+			if(result != 12 && result != 13 && result != 14) {
 				setTurn(board[tx][ty][0], sx, tx, ty,result);
 			}
 		}
 		redraw(grid);
-
+		posList.add(Resources.calculateHash(board));
+		System.out.println(posList.toString());
 
 	}
 
@@ -852,25 +829,13 @@ public class Board extends Application {
 		return maxID;
 	}
 
+	
+	
 	public void makeMove(int[] piece, int x, int y, int tX, int tY){
-
-		ArrayList<int[]> squaresToPaint = MGameUtility.PaintLastMove(board, x, y, tX, tY);
-		
-		System.out.println(squaresToPaint.size());
-		
-		for (int[] is : squaresToPaint) {
-			((Rectangle)(sqArray[is[0]][is[1]].getChildren().get(0))).setFill(new Color(0.01, 0.59, 0.57, 1));
-		}
-		
 		board[x][y] = null;
 		board[tX][tY] = piece;
 		piece[3] = tX;
 		piece[4] = tY;
-		
-		
-		
-		//returnKingAndRookPositions(board,currentTurn);
-
 	}
 
 
@@ -948,10 +913,10 @@ public class Board extends Application {
 			board[8][6] = new int[] {1};
 		}
 		else if(s.equals("Kkq")) {
-			rooksMoved[2] = 1;
+			board[8][4] = new int[] {1};
 		}
 		else if(s.equals("Qkq")) {
-			rooksMoved[3] = 1;
+			board[8][5] = new int[] {1};
 		}
 		else if(s.equals("KQk")) {
 			board[8][2] =  new int[] {1};
@@ -1066,7 +1031,7 @@ public class Board extends Application {
 	}
 
 
-	private  String pieceSymbol(int id, int startingX, int targetX, int targetY,boolean enPassant) {
+	public static String pieceSymbol(int id, int startingX, int targetX, int targetY,boolean enPassant) {
 		String symbol = "";
 
 		
@@ -1086,7 +1051,6 @@ public class Board extends Application {
 			symbol = "K";
 		}
 
-		System.out.println();
 		symbol += (board[targetX][targetY] != null || enPassant) ? 'x' : "";
 		symbol += xConv(targetY)+(8-targetX);
 
@@ -1095,7 +1059,7 @@ public class Board extends Application {
 	}
 
 
-	private String xConv(int a) {
+	private static String xConv(int a) {
 		String symbol = "";
 
 		switch(a) {

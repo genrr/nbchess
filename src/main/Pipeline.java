@@ -53,17 +53,17 @@ public class Pipeline extends Thread{
 					element = queue.peek();
 					
 					try {
-						if(!queue.peek().getStatus().contentEquals("send P -> E")) {
+						if(element != null && !element.getStatus().contentEquals("send P -> E")) {
 							element = queue.take();
 						}
-					} catch (Exception e) {
-						// TODO Auto-generated catch block
+					} 
+					catch (InterruptedException e) {
 						e.printStackTrace();
 					}
 				}
-				System.out.println("something in queue: "+element.getStatus());
+				//System.out.println("something in queue: "+element.getStatus());
 				
-				if(element.getStatus().contentEquals("send E -> P")) {
+				if(element != null && element.getStatus().contentEquals("send E -> P")) {
 					heurStorage = element.hs;
 					evalStorage = element.es;
 					relStorage = element.rs;
@@ -71,16 +71,16 @@ public class Pipeline extends Thread{
 					evalValStorage = element.evs;
 					relValStorage = element.rvs;
 				}
-				else if(element.getStatus().contentEquals("request P -> E")) {
+				else if(element != null && element.getStatus().contentEquals("request P -> E")) {
 					queue.put(new Message(heurStorage,evalStorage,relStorage,
 							heurValStorage,evalValStorage,relValStorage,"send P -> E"));
 				}
-				else if(element.getStatus().contentEquals("exit")) {
+				else if(element != null && element.getStatus().contentEquals("exit")) {
 					System.out.println("exiting pipeline..");
 					break;
 				}
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
+			} 
+			catch (InterruptedException e) {
 				e.printStackTrace();
 			}
 			//System.out.println("element at pipeline: "+element);

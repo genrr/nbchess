@@ -47,8 +47,8 @@ public class MSystem {
 		ArrayList<int[]> ownMoves = MGameUtility.getAllMoves(board, turn);
 		ArrayList<int[]> opponentMoves = MGameUtility.getAllMoves(board, (turn+1) % 2);
 
-		double[][][] ownStack = new double[ownPieces.size()][][];
-		double[][][] opponentStack = new double[enemyPieces.size()][][];
+		double[][][] ownStack = new double[ownPieces.size()][8][8];
+		double[][][] opponentStack = new double[enemyPieces.size()][8][8];
 		double[][] table = new double[8][8];
 		int x,y,tx,ty;
 		
@@ -110,6 +110,21 @@ public class MSystem {
 			}
 		}
 		return r;
+	}
+	
+	public static double[][] boardSubtraction(double[][] pos1, double[][] pos2){
+		
+		double[][] result = new double[8][8];
+		
+		for(int a = 0; a<8; a++) {
+			for(int b = 0; b<8; b++) {
+				result[a][b] = pos1[a][b] - pos2[a][b];
+			}
+		}
+		
+		
+		return result;
+		
 	}
 
 	

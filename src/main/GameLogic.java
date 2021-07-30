@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.BlockingQueue;
 
+import javafx.application.Platform;
+
 public class GameLogic {
 	public static int MAIN_ITERATIONS = 1;//32768;
 	public static int NO_GP = 170;
@@ -18,10 +20,10 @@ public class GameLogic {
 	public static int DIST_THRESHOLD = 5;
 	public static int NO_LINES = 16;
 	public static int LINES_TOP = 3;
+	static Random r = new Random();
 	private static int white;
-	private static double[] heuristics = new double[26];
 	private static ArrayList<ArrayList<int[][][]>> lineStack = new ArrayList<ArrayList<int[][][]>>(NO_LINES);
-	private static ArrayList<ArrayList<int[]>> moveStack = new ArrayList<ArrayList<int[]>>(NO_LINES);
+	private static ArrayList<ArrayList<double[]>> moveStack = new ArrayList<ArrayList<double[]>>(NO_LINES);
 	private static Objectives o;
 	private static boolean resign = false;
 	private static boolean drawOffered = false;
@@ -30,18 +32,23 @@ public class GameLogic {
 	public static double tldSP = 3.4;
 	public static double tObj = 12.5;
 	private static int hMax = 5;
-	private static int id_max = 64;
 	private static int tempLimit = 64;
 	private static double dist = 0;
 	private static int tries = 0;
 	private static int depthMax = 5;
 	private static int depthCounter = 0;
 	private static int counter = 0;
-	private static int currentPlayer;
-	private static ArrayList<double[][]> characterList = new ArrayList<double[][]>(hMax);
-
-	private static double[][] resultTable;
-	private static HashMap<double[],double[]> HCS;
+	private static int totalPlies = 0;
+	private static int maxPlies = 100;
+	private static int ply = 0;
+	private static int depth = 0;
+	private static int localDepth = 0;
+	private static int maxDepth = 3;
+	private static int posValue;
+	private static ArrayList<double[][]> repChanges = new ArrayList<>();
+	private static ArrayList<double[]> diffTable = new ArrayList<>();
+	private static ArrayList<double[][]> repList = new ArrayList<double[][]>();
+	private static double[][] correlationTable;
 	private static HashMap<int[],double[]> MCS;
 	private static ArrayList<double[]> localH;
 	private static ArrayList<double[]> localV;
@@ -50,13 +57,8 @@ public class GameLogic {
 	private static ArrayList<double[][]> localHV;
 	private static ArrayList<double[][][]> localEV;
 	private static ArrayList<double[][][][]> localRV;
-	
-	private static StochasticSystem c;
-	private static int[][] localO;
-	private static boolean initialValues = false;
+	private static ArrayList<String> posList = Board.getPosList();
 	private static double badValueTld = 3;
-	private static int depth = 0;
-	
 	private static boolean init = true;
 	/*
 	 * convenience function for manual adjustment of algorithm constants
@@ -104,14 +106,18 @@ public class GameLogic {
 	
 	
 	
+	
 	/*
 	 * Generates move, returns it as a vector: {startX,startY,targetX,targetY}
 	 * 
+	 * TODO: eval changing as part of the algorithm
+	 * COTable implementation, Heuristic implementations
 	 * 
 	 */
 	
 	public static Message Generate(int[][][] board, int turnNumber, int w, BlockingQueue<Message> storage, StochasticSystem c) {
 		System.out.println("starting generation");
+		int[] priorityList;
 		white = w;
 		moveStack.clear();
 		MCS = new HashMap<int[],double[]>();
@@ -122,7 +128,7 @@ public class GameLogic {
 		try {
 			if(!init) {
 				if(storage.peek()!= null)
-					System.out.println("status-"+storage.peek().getStatus());;
+					System.out.println("status-"+storage.peek().getStatus());
 				storage.put(new Message(null,"request P -> E"));
 				System.out.println("taking");
 				while(storage.peek() != null) {
@@ -132,7 +138,6 @@ public class GameLogic {
 							break;
 						}
 					} catch (Exception e) {
-						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
 				}
@@ -175,42 +180,38 @@ public class GameLogic {
 		 * start gameState closeness pruned search ->
 		 * 
 		 */
-
-
+		
+		//reset everything
+		totalPlies = 0;
+		depth = 0;
+		localDepth = 0;
+		posValue = 0;
+		localH.clear();
+		localV.clear();
 
 		localH.add(MeasureAllHeuristics(board, w));
+		localV.add(ValueFunction.computeValue(board, w, true));
 		for(int j = 0; j<26; j++) {
 			evaluatedValues[j] = evaluate(j,turnNumber,localE.get(0)) - localH.get(0)[j];
 		}
 		
-		double[][] t = simulate(0, board, evaluatedValues, 45);
+		priorityList = GameSystem.prioritize(evaluatedValues, hMax); //[h1,h2,h3,..]		
+		correlationTable = simulate(0,board,evaluatedValues);		
+
+		double temp1,temp2;
+		int h2 = 0;
+		int y = 0;
 		
 		
-		/*priorityList = GameSystem.prioritize(evaluatedValues, hMax); //[h1,h2,h3,..]
-		//HCS.put(localH.get(localH.size()-1),ValueFunction.computeValue(board, w, true));
-		
-		int[] temp;
-		
-		for(int i = 0; i<NO_GP; i++) {
-			temp = MSystem.generate();
-			d[i] = temp;
-			MCS.put(temp,new double[] {0,0,0,0,0});
+
+		for(int i = 0; i<MAIN_ITERATIONS; i++) {
+			moveStack.add(new ArrayList<double[]>()); // add a line of moves
+			search(board,w,w,moveStack.get(moveStack.size()-1));
+			posList.clear(); //clear the poslist in anticipation of a new round, new line
+			posList.add(Resources.calculateHash(board)); //add starting position
 		}
-		
-		//gpSearch(board,d);*/
 
 		
-		
-		
-		moveStack.add(new ArrayList<int[]>());
-		moveStack.get(0).add(MGameUtility.getAllMoves(board, w).get(4));
-		
-
-		/* DATA STORING for the next turns
-		 * 
-		 * 
-		 */
-	
 		try {
 			if(storage.peek()!= null)
 				System.out.println("status-"+storage.peek().getStatus());
@@ -234,18 +235,317 @@ public class GameLogic {
 			decision = "draw accepted";
 		}
 		
-
-		/*
-		 * {0,0,}
-		 * {0,0,0,0}
-		 */
+		double posv,posv2,totalv,totalv2;
+		int max = 0;
 		
-		return new Message(null, moveStack.get(0).get(0),
+		for (int i = 0; i < moveStack.size(); i++) {
+			for (int j = 0; j < moveStack.size(); j++) {
+				posv = moveStack.get(i).get(0)[1];
+				totalv =  moveStack.get(i).get(0)[2];
+				posv2 = moveStack.get(j).get(0)[1];
+				totalv2 =  moveStack.get(j).get(0)[2];
+				
+				if(i != j && posv*100 + totalv*50 > posv2*100 + totalv2*50) {
+					max = i;
+				}
+			}
+		}
+		
+		System.out.println("selected line: ");
+		
+		for(int i = 0; i<moveStack.get(max).size(); i++) {
+			System.out.println(Arrays.toString(moveStack.get(max).get(i)));
+		}
+		
+		int[] move = new int[] {
+				(int)moveStack.get(max).get(1)[0],
+				(int)moveStack.get(max).get(1)[1],
+				(int)moveStack.get(max).get(1)[2],
+				(int)moveStack.get(max).get(1)[3],
+				(int)moveStack.get(max).get(1)[4]};
+		
+		
+		return new Message(null, move,
 				turnNumber,decision);
 		
 
 	}
 
+
+	private static void search(int[][][] pos, int white, int current, ArrayList<double[]> line){
+	    ArrayList<int[]> moves = MGameUtility.getAllMoves(pos, white);
+	    
+	    int[][][] pos1 = MGameUtility.cloneArray(pos);
+	    int[][][] pos2 = MGameUtility.cloneArray(pos);
+	    double[] y1,y2;
+	    double plyEval = 1.0;
+	    
+	    for(int i = 0; i<moves.size(); i++){
+	    	System.out.println("totalPlies "+totalPlies+" depth: "+depth);
+	        totalPlies++; //increment total positions searched
+	        
+	        makeMove(moves.get(i),pos2);
+
+	        y1 = MeasureAllHeuristics(pos1, white);
+			y2 = MeasureAllHeuristics(pos2, white);
+
+			for(int h=0;h<26;h++) {
+				for(int v=0;v<5;v++) {
+					plyEval += Math.abs(correlationTable[h][v] + (y2[h] - y1[h])); 
+				}
+			}
+			
+
+	        if(current == white)
+	            posValue += compute(pos1,pos2,white);
+	        else
+	            posValue -= compute(pos1,pos2,white);
+	            
+	        if(depth <= maxDepth && totalPlies < maxPlies){
+        		line.add(new double[] {moves.get(i)[0],moves.get(i)[1],moves.get(i)[2],moves.get(i)[3],
+        				moves.get(i)[4], posValue, plyEval});
+	
+	            ply++; //increment vertical plies counter, used in calculating the depth
+	            if(ply % 2 == 0)
+	                depth++; //increment depth
+	            
+	            if(posValue > 3 && plyEval > 1) {
+	            	System.out.println("recursion is fun");
+	            	search(pos2,(white+1)%2, current,line);
+	            }
+	        }
+	        if(totalPlies >= maxPlies) {
+	        	line.add(0,new double[] {-1,posValue,posValue/depth}); //add line result
+	        	return;
+	        }
+ 
+	    }
+	    
+
+	    if(current == white)
+	        posValue -= compute(pos1,pos2,white);
+	    else
+	        posValue += compute(pos1,pos2,white);
+	    ply--;
+	    depth--;
+	    posList.remove(posList.size()-1);
+
+	}
+	
+	
+	//TODO: add positionalcrunch, add objective effects
+	
+	public static double compute(int[][][] previous, int[][][] pos, int white) {
+		
+		double[] posValues = ValueFunction.computeValue(pos, white, true);
+		double[] h = MeasureAllHeuristics(pos, white);
+		double[] prevH = MeasureAllHeuristics(previous, white);
+		double a = 0;
+		double b = 0;
+		double c = 0;
+		double d = 0;
+		double kingSafety = 24*posValues[0];
+		
+		for(int i = 0; i<5; i++){
+			double temp = Math.abs(1-posValues[i]);
+			if(temp <= 3) {
+				a *= temp;
+			}
+			else {
+				a += temp;
+			}
+		}
+		
+		a /= 5;
+		
+		for(int i = 0; i<repList.size(); i++) {
+			b += MSystem.boardDistance(MSystem.computeBoard(pos, white), repList.get(i));
+		}
+		
+		b /= repList.size();
+		
+		for(int j = 0; j<26; j++) {
+			c += evaluate(j,localE.get(0)) - h[j];
+		}
+		
+		for(int j = 0; j<26; j++) {
+			d += evaluate(j,localE.get(0)) - prevH[j];
+		}
+		
+		
+		
+		return 1.0 / (kingSafety*a*b*c) + (c-d) + 256*MeasureHeuristic(pos, white, 14) + 460 / MeasureHeuristic(pos,white,12) + ValueFunction.crunch(posValues, new double[] {16,16,16,16,16});
+	}
+	
+	
+	public static double[][] simulate(int mode, int[][][] pos0, double[] evaluatedValues) {
+		
+		double[][] result = new double[26][5];
+		double[] temp1,temp2,temp3,temp4,temp5,temp6;
+		int size;
+		int index = 0;
+		
+		//FULL simulation
+		if(mode == 0) {
+			explore(pos0,white);
+			//System.out.println(result[0][200]);
+			size = localH.size();
+			System.out.println("size = "+size);
+
+			for(int h = 0; h<26; h++) {
+				temp1 = new double[size]; //array for heur h
+				temp2 = new double[size]; //array for Values
+				
+				for(int i = 0; i < size; i++) {
+					//copy h from explore(localH) to temp1
+					temp1[i] = localH.get(i)[h];
+				}
+
+				for(int v = 0; v<5; v++) {
+					//fill the Values
+					for(int i = 0; i < size; i++) {
+						temp2[i] = localV.get(i)[v];
+					}					
+					result[h][v] = MGameUtility.correlation(temp1,temp2,1); //h correlation
+
+				}
+
+			}
+		
+		}
+
+
+		
+		return result;
+		
+		
+	}
+	
+	public static void explore(int[][][] pos, int turn) {
+		double[] h;
+		double[] v;
+		double[] y1;
+		double[] y2;
+		double[] hChange = new double[26];
+		int[][][] pos1 = MGameUtility.cloneArray(pos);
+		int[][][] pos2 = MGameUtility.cloneArray(pos);
+		double[][] currentEval = new double[3][26];
+		double[][] newEval = new double[3][26];
+		ArrayList<int[]> moves = MGameUtility.getAllMoves(pos2, turn);
+		double[] d = new double[26];
+		double temp = 0;
+		double minSum = 0;
+		int minimalDiffIndex = 0;
+		int val = 1;
+		
+		for (int x = 0; x<moves.size(); x++) {
+//			System.out.println("move "+ Board.pieceSymbol(pos2[is[0]][is[1]][0],is[1],is[2],is[3],is[4]==11) +" from ("+is[0]+ " "+
+//					is[1]+ ") to ("+
+//					is[2]+ " "+
+//					is[3]+ "), result: "+
+//					is[4]);
+			
+			makeMove(moves.get(x),pos2);			
+			y1 = MeasureAllHeuristics(pos1, turn);
+			y2 = MeasureAllHeuristics(pos2, turn);
+			for(int j = 0; j<26; j++) {
+				hChange[j] = Math.signum(y2[j] - y1[j]);
+				d[j] = evaluate(j, localE.get(0)) - y2[j];
+				temp += d[j];
+			}
+			
+			temp /= 26;
+			
+			if(temp < minSum) {
+				minSum = temp;
+				minimalDiffIndex = x;
+			}
+			
+			if(1.0 / (ValueFunction.computeValue(pos2, turn, true)[0] - 1) > 10){
+				val += 100;
+			}
+			if(1.0 / (ValueFunction.computeValue(pos2, turn, true)[1] - 1) > 10){
+				val += 67;
+			}
+			if(1.0 / (ValueFunction.computeValue(pos2, turn, true)[2] - 1) > 10){
+				val += 33;
+			}
+			if(1.0 / (ValueFunction.computeValue(pos2, turn, true)[3] - 1) > 10){
+				val += 33;
+			}
+			if(1.0 / (ValueFunction.computeValue(pos2, turn, true)[4] - 1) > 10){
+				val += 60;
+			}
+			
+			if(val > 70) {
+				repList.add(MSystem.computeBoard(pos2, turn));
+			}
+		
+			
+			repChanges.add(MSystem.boardSubtraction(MSystem.computeBoard(pos1,turn), MSystem.computeBoard(pos2, turn)));
+			diffTable.add(hChange);	
+			h = MeasureAllHeuristics(pos2, turn);
+			v = ValueFunction.computeValue(pos2, turn, true);
+			v = ValueFunction.direction(v,true);
+			localH.add(h);
+			localV.add(v);
+			currentEval = localE.get(localE.size()-1);
+			
+			if(ValueFunction.crunch(v, new double[] {16,16,16,16,16}) < 20) {
+					for(int i = 0; i<26; i++) {
+						for(int j = 0; j<3; j++) {
+							do{
+								newEval[j][i] = 6*r.nextDouble()-3;
+							}
+							while(Math.abs(newEval[j][i]-currentEval[j][i]) <= 4);
+						}
+					}
+
+				localE.add(newEval);
+			}
+			else {
+				for(int i = 0; i<26; i++) {
+					for(int j = 0; j<3; j++) {
+						do{
+							newEval[j][i] = 6*r.nextDouble()-3;
+						}
+						while(Math.abs(newEval[j][i]-currentEval[j][i]) > 2);
+					}
+				}
+				localE.add(newEval);
+			}
+			
+
+			posList.remove(posList.size()-1);
+			pos2 = pos1;
+		}
+		
+		
+		//test for maximum depth, decrement current depth
+		if(depth+1 > maxDepth) { 
+			localDepth--;
+			//System.out.println("returning up one level, depth: "+depth);
+			return;
+		}
+		//only update depth variable after recursion has fully returned to ensure that
+		//recursion returns fully first
+		else if(localDepth == 0) {
+			depth = 0; 
+		}
+		//go deeper, increment both depth variables
+		else {
+			localDepth++;
+			depth++;
+			//System.out.println("going down one level, depth: "+depth);
+			explore(makeMove(moves.get(minimalDiffIndex), pos2),(turn + 1) % 2);
+		}
+
+		
+		
+		
+	}
+	
+	
 	private static void gpSearch(int[][][] pos0, int[][] targetGpList) {
 		ArrayList<int[]> moves = MGameUtility.getAllMoves(pos0, white);		
 		boolean match = false;
@@ -281,7 +581,7 @@ public class GameLogic {
 					diffs = 0;
 	
 					for(int n = 0; n<26; n++) {
-						diffs += 1 / evaluate(j,turnNumber,localE.get(0)) - localH.get(0)[j];
+						diffs += 1 / evaluate(j,localE.get(0)) - localH.get(0)[j];
 					}
 					if(diffs > bestDiffs) {
 						bestDiffs = diffs;
@@ -363,7 +663,6 @@ public class GameLogic {
 		
 		return gpList;
 	}
-	
 	
 	//GamePlan piece-wise implementation for the search
 	
@@ -510,78 +809,8 @@ public class GameLogic {
 		
 	}
 
-	public static double[][] simulate(int mode, int[][][] pos0, double[] evaluatedValues, int tries) {
-		
-		double[][] result = new double[133][26];
-		double[] temp1,temp2,temp3,temp4,temp5,temp6;
-		int size;
-		int index = 0;
-		
-		//LIMITED simulation
-		if(mode == 0) {
-			explore(pos0,white);
-			size = localH.size();
 
-				for(int h = 0; h<26; h++) {
-					
-					temp1 = new double[size];
-					temp2 = new double[size];
-					temp3 = new double[size];
-					temp4 = new double[size];
-					temp5 = new double[size];
-					temp6 = new double[size];
-					
-					for(int i = 0; i < Math.round(size/2); i++) {
-						temp1[i] = localH.get(i)[h];
-						temp3[i] = localE.get(i)[0][h];
-						temp4[i] = localE.get(i)[1][h];
-						temp5[i] = localE.get(i)[2][h];
-					}
-
-					for(int v = 0; v<5; v++) {
-						for(int i = 0; i < size; i++) {
-							temp2[i] = localV.get(i)[v];
-						}
-						
-						
-						if(index == 0) {
-							result[5+3*v][h] = MGameUtility.correlation(temp3,temp2);
-						}
-						else if(index == 1) {
-							result[6+3*v][h] = MGameUtility.correlation(temp4,temp2);
-						}
-						else {
-							result[7+3*v][h] = MGameUtility.correlation(temp5,temp2);
-						}
-						
-						index = (index+1) % 3;
-						
-						result[v][h] = MGameUtility.correlation(temp1,temp2);
-						
-						
-						for(int gap = 0; gap<25; gap++) {
-							for(int i = 0; i<size; i++) {
-								temp6[i] = localH.get(i)[h] / localH.get(i)[h+gap];
-							}
-							result[20+25*v+gap][h] = MGameUtility.correlation(temp6,temp2);
-						}
-						
-					}
-					
-					
-					
-				}
-				
-			
-		}
-		return result;
-		
-		
-	}
-	
-
-	
-	private static ArrayList<int[]> search(int[][][] pos, int t){
+	private static ArrayList<int[]> searchf(int[][][] pos, int t){
 
 		int depth = 1;
 		ArrayList<int[]> line = new ArrayList<>(depth);
@@ -682,46 +911,7 @@ public class GameLogic {
 		
 	}
 	
-	
-	public static void explore(int[][][] pos, int turn) {
-		
-		double[] h;
-		double[] v;
-		int[][][] pos2 = MGameUtility.cloneArray(pos);
-		
-		ArrayList<int[]> moves = MGameUtility.getAllMoves(pos2, turn);
-		
-		for (int[] is : moves) {
-			System.out.println("making move from ("+is[0]+ " "+
-					is[1]+ ") to ("+
-					is[2]+ " "+
-					is[3]+ "), move result: "+
-					is[4]);
-			
-			pos2 = makeMove(is,pos);
-			h = MeasureAllHeuristics(pos2, turn);
-			v = ValueFunction.computeValue(pos2, turn, true);
-			v = ValueFunction.normalize(pos2, turn, v, new double[] {16,16,16,16,16});
-			v = ValueFunction.direction(v,true);
-			localH.add(h);
-			localV.add(v);
-			
-			
-			
-			
-			if(depth > 5) {
-				depth--;
-				return;
-			}
-			else {
-				System.out.println("depth: "+depth);
-				depth++;
-				//explore(pos2,(turn + 1) % 2);
-			}
-		}
-		
-		
-	}
+
 	
 	
 	public static void searchTree(int i, int[][][] pos, int turn, double[][] targetRep) {
@@ -780,7 +970,8 @@ public class GameLogic {
 			board[tx][ty][4] = -1;
 		}
 		
-		System.out.println(board[sx][sy]);
+		
+
 		board[sx][sy][3] = tx;
 		board[sx][sy][4] = ty;
 		
@@ -904,7 +1095,7 @@ public class GameLogic {
 		}
 		
 		
-		
+		posList.add(Resources.calculateHash(board));
 	
 		return board;
 		
@@ -921,63 +1112,66 @@ public class GameLogic {
 		PositionFeature p = new PositionFeature(board, white);
 
 		heuristics[0] = p.RelM();
-		System.out.println("relative piece amounts: "+heuristics[0]);
 		heuristics[1] = p.RelMAVG();
-		System.out.println("piece unit value avg relative to opponent : "+heuristics[1]);
 		heuristics[2] = p.RelMV();
-		System.out.println("piece unit value sum relative to opponent: "+heuristics[2]);
 		heuristics[3] = p.RelPVAVG();
-		System.out.println("piece average relative value: "+heuristics[3]);
 		heuristics[4] = p.BestPiece();
-		System.out.println("best relative value "+heuristics[4]);
 		heuristics[5] = p.LongestPawnChain();
-		System.out.println("longest string of connected pawns : "+heuristics[5]);
 		heuristics[6] = p.DistanceFromDefaultRelativeToEnemy();
-		System.out.println("distance from starting positions compared to enemy : "+heuristics[6]);
 		heuristics[7] = p.MinDistKing_Enemy();
-		System.out.println("closest enemy piece: has dist of "+heuristics[7]+" to our king");
 		heuristics[8] = p.MinDistKing_Own();
-		System.out.println("closest own piece: has dist of "+heuristics[8]+" to enemy king");
 		heuristics[9] = p.PercentThreat_Own();
-		System.out.println("% of own pieces under threat: "+heuristics[9]);
 		heuristics[10] = p.PercentThreat_Enemy();
-		System.out.println("% of enemy pieces attacked: "+heuristics[10]);
 		heuristics[11] = p.TradeEfficiency();
-		System.out.println("degree of trading inequalities : "+heuristics[11]);
 		heuristics[12] = p.OpenSquareCount();
-		System.out.println("all legal squares of rooks/bishops/queens : "+heuristics[12]);
 		heuristics[13] = p.PercentDefended();
-		System.out.println("% of own pieces defended: "+heuristics[13]);
 		heuristics[14] = p.MostSquaresAvailableForPiece();
-		System.out.println("maximal legal squares : "+heuristics[14]);
 		heuristics[15] = p.MostDefensesForPiece();
-		System.out.println("maximal defenses : "+heuristics[15]);
 		heuristics[16] = p.MostFreeSquaresForPiece();
-		System.out.println("maximal empty & legal squares : "+heuristics[16]);
 		heuristics[17] = p.MostSquaresSafeForPiece();
-		System.out.println("maximal legal & not threatened squares : "+heuristics[17]);
 		heuristics[18] = p.CountAllAvailableSquares();
-		System.out.println("count of all legal squares : "+heuristics[18]);
 		heuristics[19] = p.CountAllFreeSquares();
-		System.out.println("count of all empty & legal squares: "+heuristics[19]);
 		heuristics[20] = p.CountAllSafeSquares();
-		System.out.println("count of all legal & not threatened squares : "+heuristics[20]);
 		heuristics[21] = p.LongestChainOfDefenses();
-		System.out.println("longest chain of defenses : "+heuristics[21]);
 		heuristics[22] = p.ChainBranching();
-		System.out.println("maximal defenders / branching : "+heuristics[22]);
 		heuristics[23] = p.CountDefenseLoops();
-		System.out.println("count of loops (e.g. p1 defends p2 defends p3 defends p1 etc..): "+heuristics[23]);
 		heuristics[24] = p.PositionComplexity();
-		System.out.println("amount of computation needed to get 22,23,24 -> complexity : "+heuristics[24]);
 		heuristics[25] = p.ComplexityRatio();
-		System.out.println("ratio of complexities : "+heuristics[25]);
-		System.out.println();
+		
 		//TODO: distance from start positions
 		//longest chain gives 1 while loops gives e.g. 8??
 		//is 23 loops, working?
 		//is 24 branching, working?
 		//define 25
+		
+//		System.out.println("relative piece amounts: "+heuristics[0]);
+//		System.out.println("piece unit value avg relative to opponent : "+heuristics[1]);
+//		System.out.println("piece unit value sum relative to opponent: "+heuristics[2]);
+//		System.out.println("piece average relative value: "+heuristics[3]);
+//		System.out.println("best relative value "+heuristics[4]);
+//		System.out.println("longest string of connected pawns : "+heuristics[5]);
+//		System.out.println("distance from starting positions compared to enemy : "+heuristics[6]);
+//		System.out.println("closest enemy piece: has dist of "+heuristics[7]+" to our king");
+//		System.out.println("closest own piece: has dist of "+heuristics[8]+" to enemy king");
+//		System.out.println("% of own pieces under threat: "+heuristics[9]);
+//		System.out.println("% of enemy pieces attacked: "+heuristics[10]);
+//		System.out.println("degree of trading inequalities : "+heuristics[11]);
+//		System.out.println("all legal squares of rooks/bishops/queens : "+heuristics[12]);
+//		System.out.println("% of own pieces defended: "+heuristics[13]);
+//		System.out.println("maximal legal squares : "+heuristics[14]);
+//		System.out.println("maximal defenses : "+heuristics[15]);
+//		System.out.println("maximal empty & legal squares : "+heuristics[16]);
+//		System.out.println("maximal legal & not threatened squares : "+heuristics[17]);
+//		System.out.println("count of all legal squares : "+heuristics[18]);
+//		System.out.println("count of all empty & legal squares: "+heuristics[19]);
+//		System.out.println("count of all legal & not threatened squares : "+heuristics[20]);
+//		System.out.println("longest chain of defenses : "+heuristics[21]);
+//		System.out.println("maximal defenders / branching : "+heuristics[22]);
+//		System.out.println("count of loops (e.g. p1 defends p2 defends p3 defends p1 etc..): "+heuristics[23]);
+//		System.out.println("amount of computation needed to get 22,23,24 -> complexity : "+heuristics[24]);
+//		System.out.println("ratio of complexities : "+heuristics[25]);
+//		System.out.println();
+		
 		
 		PositionFeature.reset();
 		
@@ -1085,6 +1279,20 @@ public class GameLogic {
 		double c = evalConst[2][heuristic];
 		
 		return a*Math.sin(b*turn + c);
+		
+		
+		
+	}
+	
+	private static double evaluate(int heuristic, double[][] evalConst) {
+		
+		//a*sin(b*x + c)
+		
+		double a = evalConst[0][heuristic];
+		double b = evalConst[1][heuristic];
+		double c = evalConst[2][heuristic];
+		
+		return a*Math.sin(b + c);
 		
 		
 		
