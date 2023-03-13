@@ -10,7 +10,7 @@ public class Resources {
 	
 	private static int h_interval = 7;
 	private static int h_mod = 512;
-	private static int h_comp_ratio = 5;
+	private static int h_comp_ratio = 8;
 	
 	
 	private static double f(double x) {
@@ -85,6 +85,7 @@ public class Resources {
 		}
 		
 		for(int k = 0; k<64; k++) {
+			System.out.println(t[k]);
 			input += t[k];
 		}
 
@@ -96,11 +97,13 @@ public class Resources {
 				s2 += Integer.parseInt(s1) + prevHash;
 				prevHash = h_0(s2);
 				hash += prevHash;
+				
 				s1 = "";
 			}
 		}
 		
-		
+		System.out.println(hash.length());
+		System.out.println(hash);
 		
 		return hash;
 		
@@ -108,29 +111,29 @@ public class Resources {
 		
 	}
 	
-	public static void main(String[] jzn) {
-		int[][] posValues = new int[][] {
-						{0,0,14},
-						{0,1,10},
-						{0,2,0},
-						{0,3,0},
-						{0,4,15},
-						{0,5,11},
-						{0,6,3},
-						{0,7,7}};
-						
-		String posString = "1512010216124762";
-		
-		int bit1 = Integer.parseInt(posString.substring(0,8));
-		int bit2 = Integer.parseInt(posString.substring(8,16));
-		
-		
-		System.out.println("inputs: "+bit1+" "+bit2);
-		
-		h_0(bit1);
-		
-		System.out.println("hashed: "+h_0(bit1)+" "+h_0(bit2));
-		
-	}
+//	public static void main(String[] jzn) {
+//		int[][] posValues = new int[][] {
+//						{0,0,14},
+//						{0,1,10},
+//						{0,2,0},
+//						{0,3,0},
+//						{0,4,15},
+//						{0,5,11},
+//						{0,6,3},
+//						{0,7,7}};
+//						
+//		String posString = "1512010216124762";
+//		
+//		int bit1 = Integer.parseInt(posString.substring(0,8));
+//		int bit2 = Integer.parseInt(posString.substring(8,16));
+//		
+//		
+//		System.out.println("inputs: "+bit1+" "+bit2);
+//		
+//		h_0(bit1);
+//		
+//		System.out.println("hashed: "+h_0(bit1)+" "+h_0(bit2));
+//		
+//	}
 	
 }

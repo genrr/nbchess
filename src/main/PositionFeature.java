@@ -9,7 +9,7 @@ public class PositionFeature {
 	private static int[][][] board = null;
 	private static ArrayList<int[]> ownPieces;
 	private static ArrayList<int[]> enemyPieces;
-	private static int whitesTurn;
+	private static int ownColor;
 	private static ArrayList<int[]> allLegalSquares;
 	private static ArrayList<int[]> allFreeSquares;
 	private static ArrayList<int[]> allSafeSquares;
@@ -41,11 +41,11 @@ public class PositionFeature {
 	 */
 	
 
-	public PositionFeature(int[][][] b, int currentTurn) {
+	public PositionFeature(int[][][] b, int color) {
 		board = b;
-		whitesTurn = currentTurn;
-		enemyPieces = MGameUtility.ReturnAllPieces(board, (currentTurn+1) % 2);
-		ownPieces = MGameUtility.ReturnAllPieces(board, currentTurn);
+		ownColor = color;
+		enemyPieces = MGameUtility.ReturnAllPieces(board, (color+1) % 2);
+		ownPieces = MGameUtility.ReturnAllPieces(board, color);
 		allLegalSquares = new ArrayList<int[]>();
 		allFreeSquares = new ArrayList<int[]>();
 		allSafeSquares = new ArrayList<int[]>();
@@ -88,7 +88,7 @@ public class PositionFeature {
 			for(int i = 0; i<8; i++) {
 				for(int j = 0; j<8; j++) {
 					
-					if(MGameUtility.distance(board, p, p[3], p[4], i, j, false) == 1) {
+					if(MGameUtility.attack(board, p, i, j)) {
 						squares++;
 						allLegalSquares.add(new int[] {i,j});
 						
@@ -104,6 +104,7 @@ public class PositionFeature {
 						}
 						if(safe) {
 							allSafeSquares.add(new int[] {i,j});
+							System.out.println("square "+i+" "+j+" is safe!");
 							safeSquares++;
 						}
 						
@@ -133,9 +134,17 @@ public class PositionFeature {
 		for (int[] e : enemyPieces) {
 			for(int i = 0; i<8; i++) {
 				for(int j = 0; j<8; j++) {
-					if(MGameUtility.distance(board, e, e[3], e[4], i, j, false) == 1) {
+					if(e[5] == 1)
+					{
+						if(MGameUtility.distance(board, e, e[3], e[4], i, j, false) == -2)
+						{
+							threatenedByEnemy.add(new int[] {i,j});
+						}
+					}
+					else if(MGameUtility.attack(board, e, i, j)) {
 						threatenedByEnemy.add(new int[] {i,j});
 					}
+					
 				}
 			}
 		}
@@ -183,16 +192,14 @@ public class PositionFeature {
 		
 		for (int[] piece : ownPieces) {
 			for(int[] enemyPiece : enemyPieces) {
-				if(MGameUtility.distance(board, enemyPiece, enemyPiece[3], enemyPiece[4],
-						piece[3], piece[4], false) == 1){
+				if(MGameUtility.attack(board, enemyPiece, piece[3], piece[4])){
 					underThreat++;
 					tradeCount++;
 					
 					
 					for (int[] piece2 : ownPieces) {
 						
-						if(MGameUtility.distance(board, piece2, piece2[3], piece2[4],
-							piece[3], piece[4], false) == -1){
+						if(MGameUtility.defended(board, piece2, piece)){
 							tradeCount--;
 						}
 					}
@@ -202,8 +209,7 @@ public class PositionFeature {
 		
 		for (int[] enemyPiece : enemyPieces) {
 			for(int[] ownPiece : ownPieces) {
-				if(MGameUtility.distance(board, ownPiece, ownPiece[3], ownPiece[4],
-						enemyPiece[3], enemyPiece[4], false) == 1){
+				if(MGameUtility.attack(board, ownPiece, enemyPiece[3], enemyPiece[4])){
 					attacked++;
 				}
 			}
@@ -267,7 +273,7 @@ public class PositionFeature {
 		double sum = 0;
 		
 		for(int[] p : ownPieces) {
-			sum += MSystem.RelPV(board,p);
+			sum += BoardRepresentation.RelPV(board,p);
 		}
 		return sum / ownPieces.size();
 
@@ -280,8 +286,8 @@ public class PositionFeature {
 		double best = 0;
 		
 		for(int[] p : ownPieces) {
-			if(MSystem.RelPV(board,p) > best) {
-				best = MSystem.RelPV(board,p);
+			if(BoardRepresentation.RelPV(board,p) > best) {
+				best = BoardRepresentation.RelPV(board,p);
 			}
 		}
 		return best;
@@ -296,8 +302,9 @@ public class PositionFeature {
 		
 		
 		for(int[] p : ownPieces) {
-			if((whitesTurn == 1 && p[0] == 24) || (whitesTurn == 0 && p[0] == 17)){
+			if((ownColor == 1 && p[0] == 24) || (ownColor == 0 && p[0] == 17)){
 				pawns.add(p);
+				System.out.println("pawn added: "+p[0]);
 			}
 		}
 		
@@ -331,7 +338,9 @@ public class PositionFeature {
 			dir = -1; //only left
 		}
 		
-		if(whitesTurn == 1) {
+
+		
+		if(ownColor == 1) {
 			if(dir == -1 && board[x + 1][y - 1] != null && board[x + 1][y - 1][0] == 24) {
 				length += pawnChain(x+1,y-1);
 			}
@@ -376,42 +385,42 @@ public class PositionFeature {
 		double ownDiff = 0;
 		double enemyDiff = 0;
 		
-		for(int[] p : MGameUtility.ReturnAllPieces(board, whitesTurn)) {
+		for(int[] p : MGameUtility.ReturnAllPieces(board, ownColor)) {
 			//black piece, not a pawn
 			if(p[1] < 19) {
-				if(whitesTurn == 0) {
-					enemyDiff += MGameUtility.distance(board, p, 0, p[1]%11, p[3], p[4], false);
+				if(ownColor == 0) {
+					enemyDiff += MGameUtility.distance(board, p, p[3], p[4],0, p[1]%11,  false);
 				}
 				else {
-					ownDiff += MGameUtility.distance(board, p, 0, p[1]%11, p[3], p[4], false);
+					ownDiff += MGameUtility.distance(board, p, p[3], p[4],0, p[1]%11, false);
 				}
 			}
 			//black pawn
 			else if(p[1] < 27) {
-				if(whitesTurn == 0) {
-					ownDiff += MGameUtility.distance(board, p, 1, p[1]%19, p[3], p[4], false);
+				if(ownColor == 0) {
+					ownDiff += MGameUtility.distance(board, p, p[3], p[4],1, p[1]%19, false);
 				}
 				else {
-					enemyDiff += MGameUtility.distance(board, p, 1, p[1]%19, p[3], p[4], false);
+					enemyDiff += MGameUtility.distance(board, p, p[3], p[4],1, p[1]%19, false);
 				}
 			}
 			//white piece, not a pawn
 			else if(p[1] < 35) {
-				if(whitesTurn == 1) {
-					ownDiff += MGameUtility.distance(board, p, 7, p[1]%27, p[3], p[4], false);
+				if(ownColor == 1) {
+					ownDiff += MGameUtility.distance(board, p, p[3], p[4],7, p[1]%27,  false);
 				}
 				else {
-					enemyDiff += MGameUtility.distance(board, p, 7, p[1]%27, p[3], p[4], false);
+					enemyDiff += MGameUtility.distance(board, p, p[3], p[4],7, p[1]%27,  false);
 				}
 				
 			}
 			//white pawn
 			else if(p[1] < 43){
-				if(whitesTurn == 1) {
-					ownDiff += MGameUtility.distance(board, p, 6, p[1]%35, p[3], p[4], false);
+				if(ownColor == 1) {
+					ownDiff += MGameUtility.distance(board, p, p[3], p[4],6, p[1]%35,  false);
 				}
 				else {
-					enemyDiff += MGameUtility.distance(board, p, 6, p[1]%35, p[3], p[4], false);
+					enemyDiff += MGameUtility.distance(board, p, p[3], p[4],6, p[1]%35,  false);
 				}
 				
 			}
@@ -435,7 +444,7 @@ public class PositionFeature {
 		int minDistance = 100;
 		int pieceDist = 0;
 		
-		int[] t = MGameUtility.getKingPos(board,whitesTurn);
+		int[] t = MGameUtility.getKingPos(board,ownColor);
 		
 		int kingX = t[0];
 		int kingY = t[1];
@@ -458,7 +467,7 @@ public class PositionFeature {
 		int minDistance = 100;
 		int pieceDist = 0;
 		
-		int[] t = MGameUtility.getKingPos(board,(whitesTurn+1) % 2);
+		int[] t = MGameUtility.getKingPos(board,(ownColor+1) % 2);
 		
 		int kingX = t[0];
 		int kingY = t[1];
@@ -507,7 +516,7 @@ public class PositionFeature {
 		int tY;
 		int l = 0;
 		
-		boolean white = whitesTurn == 1 ? true : false;
+		boolean white = ownColor == 1 ? true : false;
 		
 		for(int i = 0; i < ownPieces.size(); i++) {
 			if(!white) {
@@ -517,8 +526,7 @@ public class PositionFeature {
 					//iterate over the whole board for legal squares for this piece
 					for(int j1 = 0; j1 < 8; j1++) {
 						for(int j2 = 0; j2 < 8; j2++) {
-							if(MGameUtility.distance(board, ownPieces.get(i), ownPieces.get(i)[3],
-									ownPieces.get(i)[4], j1, j2, false) == 1) {
+							if(MGameUtility.attack(board, ownPieces.get(i), j1, j2)) {
 								l++;
 							}
 						}
@@ -531,8 +539,7 @@ public class PositionFeature {
 					//iterate over the whole board for legal squares for this piece
 					for(int j1 = 0; j1 < 8; j1++) {
 						for(int j2 = 0; j2 < 8; j2++) {
-							if(MGameUtility.distance(board, ownPieces.get(i), ownPieces.get(i)[3],
-									ownPieces.get(i)[4], j1, j2, false) == 1) {
+							if(MGameUtility.attack(board, ownPieces.get(i), j1, j2)) {
 								l++;
 							}
 						}
@@ -642,7 +649,7 @@ public class PositionFeature {
 		
 		for(int[] p : ownPieces) {
 			for(int[] q : ownPieces) {
-				if(MGameUtility.distance(board, q, q[3], q[4], p[3], p[4], false) == -1) {
+				if(MGameUtility.defended(board, q, p)) {
 					perc++;
 				}
 			}
@@ -665,13 +672,14 @@ public class PositionFeature {
 		
 		for (int[] p : ownPieces) {
 			for(int[] q : ownPieces) {
-				if(MGameUtility.distance(board, q, q[3], q[4], p[3], p[4], false) == -1) {
+				if(MGameUtility.defended(board, q, p)) {
 					defenses++;
 				}
 			}
 			if(defenses > maxDefenses) {
 				maxDefenses = defenses;
 			}
+			defenses = 0;
 		}
 		return maxDefenses;
 		
@@ -761,8 +769,7 @@ public class PositionFeature {
 		for(int j = 0; j<pieces.size(); j++) {
 			
 			if(MGameUtility.GetByGid(pieces, pieceGid)[0] != -1 &&
-			   MGameUtility.distance(board, pieces.get(j), pieces.get(j)[3], pieces.get(j)[4],
-			   MGameUtility.GetByGid(pieces, pieceGid)[3], MGameUtility.GetByGid(pieces, pieceGid)[4], false) == -1) {
+			   MGameUtility.defended(board, pieces.get(j),MGameUtility.GetByGid(pieces, pieceGid))) {
 				L.add(pieces.get(j)[1]);
 			}
 

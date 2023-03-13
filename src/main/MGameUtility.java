@@ -15,8 +15,15 @@ public class MGameUtility {
 	static double[][] evalMatrix = new double[8][8];
 	private static boolean defend;
 
-
-
+	public static boolean attack(int[][][] b, int[] piece1, int tX, int tY)
+	{
+		if(distance(b, piece1, piece1[3], piece1[4], tX, tY, false) == 1)
+		{
+			return true;
+		}
+		
+		return false;
+	}
 
 	public static int distance(int[][][] b, int[] piece, int startX, int startY, int targetX, int targetY,boolean eval) {
 
@@ -24,33 +31,30 @@ public class MGameUtility {
 		boolean canMoveDiagonally = false;
 		board = b;
 		int dist = 0;
-		int id = piece[0]; 
+		int type = piece[5]; 
 
-		if(startX == -1 && startY == -1) {
+		if((startX == -1 && startY == -1) || (targetX == -1 && targetY == -1)) {
 			return 0;
 		}
 
 		//System.out.println("testing distance between: "+piece.getName()+" at ("+piece.getX()+","+piece.getY()+") -> ("+targetX+","+targetY+")");
 
 		// sX == tX && sY == tY, same square, return 0
-		if((startX == targetX && startY == targetY) || (targetX == -1 && targetY == -1)) {
+		if((startX == targetX && startY == targetY)) {
 			return 0; 
 		}
 
 
-		if(id == 12 || id == 19) {
+		if(type == 3) {
 			dist = KnightMoveDist(startX,startY,targetX,targetY);
-			if(dist == 1 && board[targetX][targetY] != null && board[targetX][targetY][2] == piece[2]) {
-				return -1;
-			}
 		}
-		else if(id == 13 || id == 14 || id == 20 || id == 21) {
+		else if(type == 4) {
 			dist = BishopMoveDist(startX,startY,targetX,targetY);
 		}
-		else if(id == 11 || id == 18) {
+		else if(type == 2) {
 			dist = RookMoveDist(startX,startY,targetX,targetY);
 		}
-		else if(id == 17 || id == 24) {
+		else if(type == 1) {
 
 			int[] p = RuleSet.nettyPater(startX, startY, targetX, targetY);
 
@@ -64,13 +68,11 @@ public class MGameUtility {
 					// 2  2  2		2  1  2
 					canMoveDiagonally = true;
 
-					//pawn defends a piece
 					if(board[targetX][targetY][2] == piece[2]) {
 						//defending own piece, return -1
 						return -1;
 
 					}
-
 				}
 				else {
 					//canMoveDiagonally == false
@@ -94,14 +96,11 @@ public class MGameUtility {
 
 
 		}
-		else if(id == 15 || id == 22) {
+		else if(type == 5) {
 			dist = QueenMoveDist(startX,startY,targetX,targetY);
 		}
-		else if(id == 16 || id == 23) {
+		else if(type == 6) {
 			dist = KingMoveDist(startX,startY,targetX,targetY);
-			if(dist == 1 && board[targetX][targetY] != null && board[targetX][targetY][2] == piece[2]) {
-				return -1;
-			}
 		}
 
 		if(eval) {
@@ -114,7 +113,6 @@ public class MGameUtility {
 		if(defend && dist == 1) {
 			return -1;
 		}
-
 
 		return dist;
 
@@ -341,23 +339,31 @@ public class MGameUtility {
 		 * 
 		 */
 		if(tX == X){
-			if(!CheckInBetween(X,Y,tX,tY)) {
+			if(!lineIsBlocked(X,Y,tX,tY)) {
+				if(board[tX][tY] != null && board[tX][tY][2] == board[X][Y][2])
+				{
+					defend = true;
+				}
 				return 1;
 			}
 		}	
 
 		else if(tY == Y){
-			if(!CheckInBetween(X,Y,tX,tY)) {
+			if(!lineIsBlocked(X,Y,tX,tY)) {
+				if(board[tX][tY] != null && board[tX][tY][2] == board[X][Y][2])
+				{
+					defend = true;
+				}
 				return 1;
 			}
 		}	
 		else {
-			if(!CheckInBetween(X,Y,multX*Math.abs(tX-X),Y) &&
-					!CheckInBetween(multX*Math.abs(tX-X),Y,tX,tY)) {
+			if(!lineIsBlocked(X,Y,multX*Math.abs(tX-X),Y) &&
+					!lineIsBlocked(multX*Math.abs(tX-X),Y,tX,tY)) {
 				return 2;
 			}
-			else if(!CheckInBetween(X,Y,X,multY*Math.abs(tY-Y)) &&
-					!CheckInBetween(X,multY*Math.abs(tY-Y),tX,tY)){
+			else if(!lineIsBlocked(X,Y,X,multY*Math.abs(tY-Y)) &&
+					!lineIsBlocked(X,multY*Math.abs(tY-Y),tX,tY)){
 				return 2;
 			}
 		}
@@ -402,7 +408,11 @@ public class MGameUtility {
 		if(Math.abs(tY-Y) == Math.abs(tX-X)){
 
 			//targeted square is reachable by diagonal movement && nothing is blocking the movement
-			if(!CheckInBetween(X,Y,tX,tY)){
+			if(!lineIsBlocked(X,Y,tX,tY)){
+				if(board[tX][tY] != null && board[tX][tY][2] == board[X][Y][2])
+				{
+					defend = true;
+				}
 				return 1;
 			}
 			else{
@@ -421,14 +431,14 @@ public class MGameUtility {
 				h1 = X + multY/2;
 				h2 = Y + multY/2;
 				if(h1 > -1 && h1 < 8 && h2 > -1 && h2 < 8) {
-					if(!CheckInBetween(X, Y, h1, h2) && !CheckInBetween(h1, h2, tX, tY)) {
+					if(!lineIsBlocked(X, Y, h1, h2) && !lineIsBlocked(h1, h2, tX, tY)) {
 						return 2;
 					}
 				}
 				h1 = X - multY/2;
 				h2 = Y + multY/2;
 				if(h1 > -1 && h1 < 8 && h2 > -1 && h2 < 8) {
-					if(!CheckInBetween(X, Y, h1, h2) && !CheckInBetween(h1, h2, tX, tY)) {
+					if(!lineIsBlocked(X, Y, h1, h2) && !lineIsBlocked(h1, h2, tX, tY)) {
 						return 2;
 					}
 				}
@@ -438,14 +448,14 @@ public class MGameUtility {
 				h1 = X + multX/2;
 				h2 = Y + multX/2;
 				if(h1 > -1 && h1 < 8 && h2 > -1 && h2 < 8) {
-					if(!CheckInBetween(X, Y, h1, h2) && !CheckInBetween(h1, h2, tX, tY)) {
+					if(!lineIsBlocked(X, Y, h1, h2) && !lineIsBlocked(h1, h2, tX, tY)) {
 						return 2;
 					}
 				}
 				h1 = X + multX/2;
 				h2 = Y - multX/2;
 				if(h1 > -1 && h1 < 8 && h2 > -1 && h2 < 8) {
-					if(!CheckInBetween(X, Y, h1, h2) && !CheckInBetween(h1, h2, tX, tY)) {
+					if(!lineIsBlocked(X, Y, h1, h2) && !lineIsBlocked(h1, h2, tX, tY)) {
 						return 2;
 					}
 				}
@@ -474,9 +484,9 @@ public class MGameUtility {
 
 			//System.out.println("after "+i+" "+j);
 
-			if((!CheckInBetween(X,Y,i,j) && !CheckInBetween(i,j,tX,tY)) ||
+			if((!lineIsBlocked(X,Y,i,j) && !lineIsBlocked(i,j,tX,tY)) ||
 					X+d1 < 8 && X+d1 > -1 && Y+d2 < 8 && Y+d2 > -1 && 
-					(!CheckInBetween(X,Y,X+d1,Y+d2) && !CheckInBetween(X+d1,Y+d2,tX,tY))) {
+					(!lineIsBlocked(X,Y,X+d1,Y+d2) && !lineIsBlocked(X+d1,Y+d2,tX,tY))) {
 				return 2;
 			}
 
@@ -518,8 +528,12 @@ public class MGameUtility {
 		}
 
 		//1-move: rook move or bishop move
-		if(((X == tX || Y == tY) && !CheckInBetween(X,Y,tX,tY)) || 
-				(Math.abs(tY-Y) == Math.abs(tX-X) && !CheckInBetween(X,Y,tX,tY))){
+		if(((X == tX || Y == tY) && !lineIsBlocked(X,Y,tX,tY)) || 
+				(Math.abs(tY-Y) == Math.abs(tX-X) && !lineIsBlocked(X,Y,tX,tY))){
+			if(board[tX][tY] != null && board[tX][tY][2] == board[X][Y][2])
+			{
+				defend = true;
+			}
 			return 1;
 		}
 
@@ -540,7 +554,7 @@ public class MGameUtility {
 				j += multY;
 			}
 
-			if(!CheckInBetween(X,Y,i,j) && !CheckInBetween(i,j,tX,tY)) {
+			if(!lineIsBlocked(X,Y,i,j) && !lineIsBlocked(i,j,tX,tY)) {
 				return 2;
 			}
 
@@ -551,9 +565,9 @@ public class MGameUtility {
 				d1 = tX-X + -1*t1;
 				d2 = tY-Y + -1*t2;
 
-				if((!CheckInBetween(X,Y,i,j) && !CheckInBetween(i,j,tX,tY)) ||
+				if((!lineIsBlocked(X,Y,i,j) && !lineIsBlocked(i,j,tX,tY)) ||
 						X+d1 < 8 && X+d1 > -1 && Y+d2 < 8 && Y+d2 > -1 && 
-						(!CheckInBetween(X,Y,X+d1,Y+d2) && !CheckInBetween(X+d1,Y+d2,tX,tY))) {
+						(!lineIsBlocked(X,Y,X+d1,Y+d2) && !lineIsBlocked(X+d1,Y+d2,tX,tY))) {
 					return 2;
 				}
 			}
@@ -580,7 +594,7 @@ public class MGameUtility {
 
 				}
 
-				if(!CheckInBetween(X,Y,i,j) && !CheckInBetween(i,j,tX,tY) ) {
+				if(!lineIsBlocked(X,Y,i,j) && !lineIsBlocked(i,j,tX,tY) ) {
 					return 2;
 				}
 
@@ -599,17 +613,59 @@ public class MGameUtility {
 
 	}
 
+	public static boolean lineCanBeMovedInto(int[][][] grid, int sx, int sy, int tx, int ty, int color, boolean hostile, boolean castling) {
+		int tempX = sx;
+		int tempY = sy;
+		int amount;
+		amount = Math.max(Math.abs(sx-tx), Math.abs(sy-ty));
+		
+		ArrayList<int[]> allPieces = MGameUtility.ReturnAllPieces(grid, hostile ? (color + 1) % 2 : color);
+		
+		System.out.println("list contains "+ allPieces.get(0)[2]+" pieces");
+		System.out.println("amount : "+amount);
+		
+		//loop through the "line" from (sx,sy) -> (tx,ty) with (tempX,tempY) being the points in between
+		for(int z = 0; z < amount-1; z++ ) {
+
+			if(tx > sx) {
+				tempX++;
+			}
+			else if(tx < sx) {
+				tempX--;
+			}
+			if(ty > sy) {
+				tempY++;
+			}
+			else if(ty < sy) {
+				tempY--;
+			}
+			
+			for(int[] p : allPieces) {
+				
+				//a piece p from allPieces can move to (tempX,tempY)
+				if(MGameUtility.attack(grid, p, tempX, tempY) && (p[5] != 6 || castling)) {
+					return true;
+				}
+
+			}
+			
+
+		}
+		
+		return false;
+		
+	}
 
 	//Checks if there is a piece in between (X,Y) and (tX,tY), (tX,tY) has to be reachable in one move 
 	//by the given piece from (X,Y)
 
-	public static boolean CheckInBetween(int X, int Y, int tX, int tY){
+	public static boolean lineIsBlocked(int X, int Y, int tX, int tY){
 
 		//set local variables:
 
 		int t1; //local variable to hold temporary X value
 		int t2; //local variable to hold temporary Y value
-		int t = Math.max(Math.abs(tX-X),Math.abs(tY-Y)); //Complete movement, absolute value	
+		int t = Math.max(Math.abs(tX-X),Math.abs(tY-Y)) - 1; //Complete movement, absolute value	
 		t1 = X; //set start temp x as X
 		t2 = Y; //set start temp y as Y
 		int i = 0; //init iterator i	
@@ -625,39 +681,15 @@ public class MGameUtility {
 			t2 += multY;
 			i++;
 
-			//System.out.println("t1: "+t1+" t2: "+t2);		
+
 			if(board[X][Y] != null && board[t1][t2] != null){
 
-				if(board[t1][t2][2] != board[X][Y][2] && (board[t1][t2][0] == 16 || board[t1][t2][0] == 23)) {
+				if(board[t1][t2][2] != board[X][Y][2] && (board[t1][t2][5] == 6)) {
 					continue;
 				}
 
-				if(board[X][Y][2] == board[t1][t2][2]) {
-					//own blocking piece along the line
-					if((t1 != tX || t2 != tY)) {
-						//System.out.println("own piece between");
-						return true;
-					}
-					//own piece at end, can move, set defending flag
-					else {
-						defend = true;
-						//System.out.println("defend");
-						return true;
-					}
+				return true;
 
-				}
-				else {
-					//enemy piece blocking the way
-					if(t1 != tX || t2 != tY){
-						//System.out.println("enemy blocking between");
-						return true;
-					}
-					//enemy piece at the end, can capture
-					else {
-						//System.out.println("capture at the end");
-						return false;
-					}
-				}
 
 			}
 
@@ -668,7 +700,6 @@ public class MGameUtility {
 	}
 
 	public static ArrayList<int[]> PaintLastMove(int[][][] board, int X, int Y, int tX, int tY){
-		System.out.println("hi");
 
 		ArrayList<int[]> l = new ArrayList<>();
 		//set local variables:
@@ -774,7 +805,6 @@ public class MGameUtility {
 						continue;
 					}
 
-					
 					int t = RuleSet.validate(board, white, p[3], p[4], i, j);
 
 
@@ -997,7 +1027,7 @@ public class MGameUtility {
 				q = p[i][j];
 				if(q != null) {
 					if(q.length != 1) {
-						clone[i][j] = new int[] {q[0],q[1],q[2],q[3],q[4]};
+						clone[i][j] = new int[] {q[0],q[1],q[2],q[3],q[4],q[5]};
 					}
 					else {
 						clone[i][j] = new int[] {q[0]};
@@ -1092,6 +1122,17 @@ public class MGameUtility {
 		return (cov == 0 || stdDevD1 == 0 || stdDevD2 == 0) ? 0 : cov / Math.sqrt(stdDevD1 * stdDevD2); 
 		
 		
+	}
+
+
+	public static boolean defended(int[][][] board2, int[] q, int[] p) {
+		
+		if(distance(board2,q, q[3],q[4],p[3],p[4],false) == -1)
+		{
+			return true;
+		}
+		
+		return false;
 	}
 
 }

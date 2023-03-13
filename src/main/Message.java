@@ -9,7 +9,7 @@ public class Message {
 	private String status;
 	private int[] move;
 	private int[] piecesInfo;
-	private Piece[][][] lines;
+	private int[][][] lines;
 	ArrayList<double[]> hs;
 	ArrayList<double[][]> es;
 	ArrayList<double[][][]> rs;
@@ -37,8 +37,7 @@ public class Message {
 	
 
 	
-	public Message(Piece[][][] lineStack, String status) {
-		lines = lineStack;
+	public Message(String status) {
 		this.status = status;
 	}
 
@@ -71,7 +70,7 @@ public class Message {
 		return es;
 	}
 	
-	public Piece[][][] getLines(){
+	public int[][][] getLines(){
 		return lines;
 	}
 }

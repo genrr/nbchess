@@ -24,7 +24,7 @@ public class Character {
 		int tries = 90;
 		
 		ArrayList<double[][]> list = new ArrayList<double[][]>();		
-		double[][] start = MSystem.computeBoard(b, white);
+		double[][] start = BoardRepresentation.computeBoard(b, white);
 		double[][] end = null;
 		double[][] result = new double[8][8];
 		int[][][] pos = MGameUtility.cloneArray(b);
@@ -40,11 +40,11 @@ public class Character {
 		double fillCounter = initialFillCounter;
 		
 		if(heuristicSet.length == 1) {
-			min = GameLogic.MeasureHeuristic(pos, white, heuristic);
+			min = GameSystem.MeasureHeuristic(pos, white, heuristic);
 		}
 		else if(heuristicSet.length == 2) {
 			relation = true;
-			min = GameLogic.MeasureHeuristic(pos, white, heuristicSet[0])/GameLogic.MeasureHeuristic(pos, white, heuristicSet[1]);;
+			min = GameSystem.MeasureHeuristic(pos, white, heuristicSet[0])/GameSystem.MeasureHeuristic(pos, white, heuristicSet[1]);;
 		}
 		
 				
@@ -112,8 +112,8 @@ public class Character {
 					}
 				}
 				
-				if(GameLogic.MeasureHeuristic(pos2, white, heuristic) < min) {
-					min = GameLogic.MeasureHeuristic(pos2, white, heuristic);
+				if(GameSystem.MeasureHeuristic(pos2, white, heuristic) < min) {
+					min = GameSystem.MeasureHeuristic(pos2, white, heuristic);
 					minPos = pos2;
 				}
 
@@ -136,19 +136,19 @@ public class Character {
 				}
 				
 				if(tries == 0 || fillCounter / initialFillCounter < 0.22) {
-					list.add(MSystem.computeBoard(pos2, white));
+					list.add(BoardRepresentation.computeBoard(pos2, white));
 				}
 				
 				pos2 = pos;
 			}
-			while(heuristicSet.length == 2 && (((((GameLogic.MeasureHeuristic(pos, white, heuristicSet[0]) / 
-					GameLogic.MeasureHeuristic(pos, white, heuristicSet[1])) > value && !rising) ||
-					((GameLogic.MeasureHeuristic(pos2, white, heuristicSet[0]) / 
-					GameLogic.MeasureHeuristic(pos2, white, heuristicSet[1])) < value && rising)) && relation)
-					) || (GameLogic.MeasureHeuristic(pos2, white, heuristic) >= value && !rising) ||
-					(GameLogic.MeasureHeuristic(pos2, white, heuristic) <= value) && rising);
+			while(heuristicSet.length == 2 && (((((GameSystem.MeasureHeuristic(pos, white, heuristicSet[0]) / 
+					GameSystem.MeasureHeuristic(pos, white, heuristicSet[1])) > value && !rising) ||
+					((GameSystem.MeasureHeuristic(pos2, white, heuristicSet[0]) / 
+					GameSystem.MeasureHeuristic(pos2, white, heuristicSet[1])) < value && rising)) && relation)
+					) || (GameSystem.MeasureHeuristic(pos2, white, heuristic) >= value && !rising) ||
+					(GameSystem.MeasureHeuristic(pos2, white, heuristic) <= value) && rising);
 			
-			list.add(MSystem.computeBoard(pos2, white));
+			list.add(BoardRepresentation.computeBoard(pos2, white));
 	
 			
 		}

@@ -14,7 +14,7 @@ import java.util.ArrayList;
 
 public class Engine extends Thread {
 
-	int[][][] data;
+	int[][][] board;
 	int turnNumber = 0;
 	int[] info;
 	private static boolean alreadyStarted = false;
@@ -30,21 +30,21 @@ public class Engine extends Thread {
 	 * [][][]
 	 */
 	
-	//Store all data and its development during the whole game of undetermined length
-	ArrayList<double[]> heurStorage; //(h_index,turnNo) heuristic development
-	ArrayList<double[][]>  evalStorage; //(h_index,[param1,param2,param3],turnNo) eval parameter development
-	ArrayList<double[][][]>  relStorage; //(h_index1,h_index2,z,turnNo) relation development
-	//(h_index,turnNo,value) heuristic development compared to value development
-	ArrayList<double[][]> heurValStorage; 
-	 //(h_index,params x3,turnNo,value) eval parameter development compared to value development
-	ArrayList<double[][][]> evalValStorage; 
-	//(hindex1,hindex2,z,turnNo,value) relation development compared to value development
-	ArrayList<double[][][][]> relValStorage;  
-	
-	//store Objectives, searched game tree, Lines
-	int[][] objStorage;
-	Piece[][][] searchTree;
-	Piece[][][] lines;
+//	//Store all data and its development during the whole game of undetermined length
+//	ArrayList<double[]> heurStorage; //(h_index,turnNo) heuristic development
+//	ArrayList<double[][]>  evalStorage; //(h_index,[param1,param2,param3],turnNo) eval parameter development
+//	ArrayList<double[][][]>  relStorage; //(h_index1,h_index2,z,turnNo) relation development
+//	//(h_index,turnNo,value) heuristic development compared to value development
+//	ArrayList<double[][]> heurValStorage; 
+//	 //(h_index,params x3,turnNo,value) eval parameter development compared to value development
+//	ArrayList<double[][][]> evalValStorage; 
+//	//(hindex1,hindex2,z,turnNo,value) relation development compared to value development
+//	ArrayList<double[][][][]> relValStorage;  
+//	
+//	//store Objectives, searched game tree, Lines
+//	int[][] objStorage;
+//	Piece[][][] searchTree;
+//	Piece[][][] lines;
 	
 	private BlockingQueue<Message> queue;
 	private BlockingQueue<Message> queue2;
@@ -53,11 +53,23 @@ public class Engine extends Thread {
 	StochasticSystem c;
 	private boolean drawOfferedByPlayer;
 	
+	ArrayList<?>[] data = {
+			MemoryUnit.isstack, MemoryUnit.trigStack, MemoryUnit.heurHistory, MemoryUnit.valHistory, MemoryUnit.BR1History, 
+			MemoryUnit.BR2History, MemoryUnit.BR3History, MemoryUnit.boardHistory
+			};
+	
+//	ArrayList<?>[] data1DI = {MemoryUnit.isstack, MemoryUnit.trigStack}; //lists of int[]
+//	ArrayList<?>[] data1DD =  {MemoryUnit.heurHistory, MemoryUnit.valHistory}; //lists of double[]
+//	ArrayList<?>[] data2D = {MemoryUnit.BR1History, MemoryUnit.BR2History, MemoryUnit.BR3History}; //lists of double[][]
+//	ArrayList<int[][][]> boardHistory = MemoryUnit.boardHistory; //list of int[][][] board positions
+	
 	public Engine(BlockingQueue<Message> q, int color) {
 		this.queue = q;
 		this.color = color;
+		
+		
 	}
-	
+
 
 	public void run() {
 		
@@ -76,8 +88,8 @@ public class Engine extends Thread {
 
 				if(element.getStatus().equals("request")) {
 					element = queue.take();				
-					data = element.getBoardData();
-					System.out.println("board: "+data);
+					board = element.getBoardData();
+					System.out.println("board: "+board);
 					turnNumber = element.getTurnNumber();				
 
 					//run these once at the start 
@@ -87,12 +99,14 @@ public class Engine extends Thread {
 						c = new StochasticSystem();
 						storage.start();
 						alreadyStarted = true;
-						engineOutput = GameLogic.Generate(data,turnNumber,color,queue2,c);
+						engineOutput = GameSystem.generate(board, turnNumber, color, queue2, c, data);
 					}	
 					else {
-						engineOutput = GameLogic.Generate(data,turnNumber,color,queue2,c);
+						engineOutput = GameSystem.generate(board, turnNumber, color, queue2, c, data);
 					}
+					
 					queue.put(engineOutput);
+					
 					Platform.runLater(new Runnable() {
 						public void run() {
 							Board.moveReady.set(true);
@@ -101,11 +115,11 @@ public class Engine extends Thread {
 					
 				}
 				else if(element.getStatus().equals("lines")) {
-					lines = element.getLines();
+					//lines = element.getLines();
 				}
 				else if(element.getStatus().equals("exit")) {
 					//shut down storage thread
-					queue2.put(new Message(null,"exit"));
+					queue2.put(new Message("exit"));
 					//shut down this thread
 					break;
 				}
@@ -115,7 +129,10 @@ public class Engine extends Thread {
 				e.printStackTrace();
 			}
 
-
+//			if(isstack.size() != 0)
+//			{
+//				System.out.println(Arrays.toString(isstack.get(0)));
+//			}
 				
 		} while (true);
 

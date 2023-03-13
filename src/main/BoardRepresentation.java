@@ -4,7 +4,7 @@ package main;
 import java.util.ArrayList;
 import java.util.Random;
 
-public class MSystem {
+public class BoardRepresentation {
 	
 	private static double[][] relativeValues = new double[8][8];
 	private static double[][] heightValues = new double[8][8];
@@ -38,6 +38,10 @@ public class MSystem {
 	 * 
 	 */
 	
+	public static double[][] computeBR1(int[][][] board)
+	{
+		return null;
+	}
 	
 	
 	public static double[][] computeBoard(int[][][] board, int turn) {
@@ -58,7 +62,7 @@ public class MSystem {
 				y = move[1];
 				tx = move[2];
 				ty = move[3];
-				opponentStack[i][tx][ty] = MGameUtility.unitValue(board[x][y]) + MSystem.RelPV(board, board[x][y]);
+				opponentStack[i][tx][ty] = MGameUtility.unitValue(board[x][y]) + BoardRepresentation.RelPV(board, board[x][y]);
 			}
 		}
 		
@@ -68,7 +72,7 @@ public class MSystem {
 				y = move[1];
 				tx = move[2];
 				ty = move[3];
-				ownStack[i][tx][ty] = MGameUtility.unitValue(board[x][y]) + MSystem.RelPV(board, board[x][y]);
+				ownStack[i][tx][ty] = MGameUtility.unitValue(board[x][y]) + BoardRepresentation.RelPV(board, board[x][y]);
 			}
 		}
 		
@@ -176,11 +180,11 @@ public class MSystem {
 					for (int m = 0; m < 8; m++) {
 						for (int n = 0; n < 8; n++) {
 							if((m != i || n != j) &&  board[m][n] != null) {
-								if(MGameUtility.distance(board, board[i][j], i, j, m, n, false) == 1) {
+								if(MGameUtility.attack(board, board[i][j], m, n)) {
 									//decremented at (m,n) by rel piece values of all the attackers
 									relationValues[m][n] -= relativeValues[i][j]; 
 								}
-								else if(MGameUtility.distance(board, board[i][j], i, j, m, n, false) == -1) {
+								else if(MGameUtility.defended(board, board[i][j], board[m][n])) {
 									//incremented at (m,n) by rel piece values of all its defenders
 									relationValues[m][n] += relativeValues[i][j];
 								}
@@ -203,7 +207,7 @@ public class MSystem {
 			for (int j = 0; j < 8; j++) {
 				if(board[i][j] != null) {
 
-					while(MGameUtility.distance(board, board[i][j], i, j, targetX, targetY, false) != 1) {
+					while(!MGameUtility.attack(board, board[i][j], targetX, targetY)) {
 						targetX = r.nextInt(8);
 						targetY = r.nextInt(8);
 						counter++;
@@ -270,29 +274,29 @@ public class MSystem {
 				int[] p1 = board[tempX1][tempY1];
 				int[] p2 = board[tempX2][tempY2];
 				int[] p3 = board[tempX3][tempY3];
-				if(MGameUtility.distance(board, board[k1][k2], k1, k2, tempX1,tempY1, false) == -1) {
+				if(MGameUtility.defended(board, board[k1][k2], board[tempX1][tempY1])) {
 					post.add(board[k1][k2]);
 					l1++;
 				}
-				if(MGameUtility.distance(board, board[k1][k2], k1, k2, tempX2,tempY2, false) == -1) {
+				if(MGameUtility.defended(board, board[k1][k2], board[tempX2][tempY2])) {
 					post2.add(board[k1][k2]);
 					l2++;
 				}
-				if(MGameUtility.distance(board, board[k1][k2], k1, k2, tempX3,tempY3, false) == -1) {
+				if(MGameUtility.defended(board, board[k1][k2], board[tempX3][tempY3])) {
 					post3.add(board[k1][k2]);
 					l3++;
 				}
-				if(MGameUtility.distance(board, p1, p1[3], p1[4], k1, k2, false) == 1 &&  board[k1][k2] != null) {
+				if(MGameUtility.attack(board, p1, k1, k2) &&  board[k1][k2] != null) {
 					post4.add(p1);
 					lin1.add(board[k1][k2]);
 					a1++;
 				}
-				if(MGameUtility.distance(board, p2, p2[3], p2[4], k1, k2, false) == 1 &&  board[k1][k2] != null) {
+				if(MGameUtility.attack(board, p2, k1, k2) &&  board[k1][k2] != null) {
 					post5.add(p2);
 					lin2.add(board[k1][k2]);
 					a2++;
 				}
-				if(MGameUtility.distance(board, p3, p3[3], p3[4], k1, k2, false) == 1 &&  board[k1][k2] != null) {
+				if(MGameUtility.attack(board, p3, k1, k2) &&  board[k1][k2] != null) {
 					post6.add(p3);
 					lin3.add(board[k1][k2]);
 					a3++;

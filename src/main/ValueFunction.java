@@ -187,7 +187,7 @@ public class ValueFunction {
 
 
 		for (int i = 0; i < list1.size(); i++) {
-			GameLogic.makeMove(list1.get(i), newBoard2);
+			GameSystem.makeMove(list1.get(i), newBoard2);
 
 
 			double[] d = computeValue(newBoard2, white,false);

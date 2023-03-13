@@ -31,8 +31,7 @@ public class Pipeline extends Thread{
 	
 	//store Objectives, searched game tree, Lines
 	int[][] objStorage;
-	Piece[][][] searchTree;
-	Piece[][][] lines;
+
 	
 	private BlockingQueue<Message> queue;
 	private int color;
@@ -45,7 +44,7 @@ public class Pipeline extends Thread{
 	
 	public void run() {
 		
-		Message element = new Message(null,"temp");
+		Message element = new Message("temp");
 		
 		do {
 			try {
